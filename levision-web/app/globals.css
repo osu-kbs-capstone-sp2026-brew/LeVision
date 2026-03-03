@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pitch:        #090b0e;
+  --color-brand:        #c8883a;
+  --color-brand-light:  #e8a85a;
+  --color-crown:        #f5a623;
+  --color-offwhite:     #f0ece4;
+  --color-muted:        #6b6660;
+  --color-accent:       #ff5533;
+  --color-surface:      rgba(255, 255, 255, 0.03);
+  --color-border:       rgba(200, 136, 58, 0.22);
+
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body:    "DM Sans", sans-serif;
+}
+
+body {
+  background-color: #090b0e;
+  color: #f0ece4;
+  font-family: var(--font-body);
+  font-weight: 300;
+}
+
+em {
+  font-style: normal;
+  color: #c8883a;
+}
+
+/* ── Keyframes ── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(36px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scan {
+  0%   { top: -2px; }
+  100% { top: 100vh; }
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes ring {
+  0%   { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+@keyframes crownBob {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50%       { transform: translateY(-4px) rotate(5deg); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes scanH {
+  0%, 100% { top: 18px; opacity: 0; }
+  10%       { opacity: 1; }
+  90%       { opacity: 1; }
+  99%       { top: calc(100% - 18px); opacity: 0; }
+}
+
+/* ── Animation utilities ── */
+
+.animate-fade-up   { animation: fadeUp 0.9s ease both; }
+.animate-scan      { animation: scan 5s ease-in-out infinite; }
+.animate-shimmer   { animation: shimmer 1.5s ease infinite; }
+.animate-crown-bob { animation: crownBob 3s ease-in-out infinite; }
+.animate-pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
+
+/* ── Stagger delays ── */
+
+.delay-50  { animation-delay: 0.05s; }
+.delay-100 { animation-delay: 0.1s; }
+.delay-150 { animation-delay: 0.15s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-450 { animation-delay: 0.45s; }
+
+/* ── Card top amber line (pseudo-element via CSS class) ── */
+
+.card-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c8883a, transparent);
+}
+
+/* ── Button inner shine ── */
+
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+/* ── Progress segment shimmer overlay ── */
+
+.prog-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 1.5s ease infinite;
+}
