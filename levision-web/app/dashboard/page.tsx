@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/lib/types'
 import PageShell from '@/components/PageShell'
+import RoleSwitcher from '@/components/RoleSwitcher'
 import { signOut } from './actions'
 import DashboardTabs from './DashboardTabs'
 import Image from 'next/image'
@@ -44,10 +45,7 @@ export default async function DashboardPage() {
           {/* Right side */}
           <div className="flex items-center gap-5">
             {profile.role && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-[0.68rem] tracking-[0.1em] uppercase text-muted/60 font-body border border-white/[0.06] px-3 py-1.5 rounded-sm">
-                <span className="w-[4px] h-[4px] bg-brand/60 rounded-full" />
-                {profile.role}
-              </span>
+              <RoleSwitcher userId={profile.id} initialRole={profile.role} />
             )}
             <span className="text-[0.78rem] text-muted font-light tracking-[0.04em] hidden sm:block">
               {profile.email}
