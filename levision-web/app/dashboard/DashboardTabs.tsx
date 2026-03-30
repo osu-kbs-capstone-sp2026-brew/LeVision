@@ -2,13 +2,24 @@
 
 import { useState } from 'react'
 import type { Profile, Game } from '@/lib/types'
+import type { FootageClip } from '@/lib/footage-library'
+import { RoleSwitch } from '@/components/role-ui'
+import FootageViewTab from '@/components/FootageViewTab'
 
-type Tab = 'upload' | 'search' | 'live' | 'past'
+function gameToReviewClip(game: Game): FootageClip {
+  return {
+    id: `past-game-${game.id}`,
+    title: `${game.awayTeam} @ ${game.homeTeam}`,
+    createdAt: game.date,
+    playbackUrl: game.videoUrl ?? null,
+  }
+}
+
+type Tab = 'view' | 'upload' | 'past'
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'view',   label: 'View Footage' },
   { id: 'upload', label: 'Upload Footage' },
-  { id: 'search', label: 'Search' },
-  { id: 'live',   label: 'Live Games' },
   { id: 'past',   label: 'Past Games' }
 ]
 
@@ -21,6 +32,8 @@ const MOCK_GAMES: Game[] = [
     homeScore: 115,
     awayScore: 110,
     date: '2024-03-01',
+    videoUrl:
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
     stats: {
       homePoints: 115,
       awayPoints: 110,
@@ -485,11 +498,12 @@ const MOCK_GAMES: Game[] = [
 ]
 
 export default function DashboardTabs({ profile }: { profile: Profile }) {
-  const [activeTab, setActiveTab] = useState<Tab>('upload')
+  const [activeTab, setActiveTab] = useState<Tab>('view')
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
+  const [reviewClip, setReviewClip] = useState<FootageClip | null>(null)
 
   return (
-    <main className="flex-1 flex flex-col px-8 pt-10 pb-16 max-w-[1100px] w-full mx-auto">
+    <main className="flex-1 flex flex-col px-8 pt-10 pb-16 max-w-[1280px] w-full mx-auto">
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-[rgba(200,136,58,0.15)] mb-10">
@@ -511,6 +525,11 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
       {/* Tab panels */}
       <div className="animate-fade-up" key={activeTab}>
 
+        {/* ── View Footage (playback library — separate from upload ingest) ── */}
+        {activeTab === 'view' && (
+          <FootageViewTab reviewClip={reviewClip} />
+        )}
+
         {/* ── Upload ── */}
         {activeTab === 'upload' && (
           <div className="flex flex-col">
@@ -518,7 +537,8 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
               Upload New Footage
             </h2>
             <p className="text-[0.84rem] text-muted font-light mb-8">
-              Drop game film, practice sessions, or highlight cuts.
+              Send game film to ingest. Viewing uses a different pipeline — open{' '}
+              <span className="text-muted/80">View Footage</span> once processing finishes.
             </p>
 
             {/* Upload zone */}
@@ -543,63 +563,12 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
 
             {/* Recent uploads placeholder */}
             <p className="text-[0.74rem] text-muted/50 font-light">
-              {profile.role === 'coach'
-                ? 'No plays saved. Even Phil Jackson wrote things down.'
-                : profile.role === 'analyst'
-                ? "Nothing here. Emptier than Cleveland's trophy case before 2016."
-                : "No footage yet. LeBron didn't become LeBron by skipping film."}
-            </p>
-          </div>
-        )}
-
-        {/* ── Search ── */}
-        {activeTab === 'search' && (
-          <div className="flex flex-col">
-            <h2 className="font-display text-offwhite text-[clamp(1.6rem,3vw,2.2rem)] tracking-[0.04em] mb-2">
-              Search
-            </h2>
-            <p className="text-[0.84rem] text-muted font-light mb-8">
-              Find plays, players, or moments across your film library.
-            </p>
-
-            {/* Search input */}
-            <div className="relative mb-8">
-              <input
-                type="text"
-                placeholder="Search footage, plays, players..."
-                className="w-full bg-white/[0.03] border border-white/10 focus:border-brand focus:bg-brand/5 rounded-sm pl-5 pr-12 py-3.5 text-offwhite font-body font-light text-sm outline-none transition-colors duration-200 placeholder:text-white/20"
+              <RoleSwitch
+                coach="No plays saved. Even Phil Jackson wrote things down."
+                fan="Nothing here. Emptier than Cleveland's trophy case before 2016."
+                player="No footage yet. LeBron didn't become LeBron by skipping film."
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted/40 text-xs tracking-widest">⌘K</span>
-            </div>
-
-            <p className="text-[0.74rem] text-muted/50 font-light">
-              Upload footage to start building your searchable library.
             </p>
-          </div>
-        )}
-
-        {/* ── Live Games ── */}
-        {activeTab === 'live' && (
-          <div className="flex flex-col">
-            <h2 className="font-display text-offwhite text-[clamp(1.6rem,3vw,2.2rem)] tracking-[0.04em] mb-2">
-              Live Games
-            </h2>
-            <p className="text-[0.84rem] text-muted font-light mb-8">
-              Track in-progress games and pull real-time stats.
-            </p>
-
-            {/* Empty state */}
-            <div className="border border-[rgba(200,136,58,0.12)] rounded-sm p-10 text-center bg-[rgba(200,136,58,0.015)]">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <span className="w-2 h-2 rounded-full bg-muted/30" />
-                <span className="text-[0.72rem] tracking-[0.14em] uppercase text-muted/50 font-body">
-                  No games live right now
-                </span>
-              </div>
-              <p className="text-[0.78rem] text-muted/40 font-light max-w-[320px] mx-auto">
-                Live game tracking will appear here when games are in progress.
-              </p>
-            </div>
           </div>
         )}
 
@@ -640,22 +609,22 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
                         </div>
                       </div>
 
-                      {/* Game Video Section */}
-                      <div className="mb-8">
-                        <h4 className="font-display text-offwhite text-lg mb-3 tracking-wider uppercase text-center">
-                          Game Video
-                        </h4>
-                        {game.videoUrl ? (
-                          <div className="aspect-video w-full max-w-3xl mx-auto rounded-sm overflow-hidden border border-[rgba(200,136,58,0.18)] bg-black/40">
-                            <video
-                              src={game.videoUrl}
-                              controls
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-[0.84rem] text-muted font-light text-center">
-                            Whoops, there&apos;s nothing there.
+                      {/* Open this game in View Footage (playback tab) */}
+                      <div className="mb-8 flex flex-col items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewClip(gameToReviewClip(game))
+                            setActiveTab('view')
+                          }}
+                          className="font-body text-[0.78rem] tracking-[0.14em] uppercase px-8 py-3.5 rounded-sm border border-brand/50 bg-brand/15 text-offwhite hover:bg-brand/25 hover:border-brand transition-colors duration-200 cursor-pointer"
+                        >
+                          Review video
+                        </button>
+                        {!game.videoUrl && (
+                          <p className="text-[0.72rem] text-muted/60 font-light text-center max-w-sm">
+                            No stream is linked for this game yet. You&apos;ll still open View
+                            Footage; add a video URL on the game record when playback is available.
                           </p>
                         )}
                       </div>

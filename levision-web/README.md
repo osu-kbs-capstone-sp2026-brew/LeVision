@@ -20,6 +20,54 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Chatbot Scaffold
+
+The UI includes a floating LeVision chat button and a local `/api/chat` route.
+
+To connect your own fine-tuned model or backend:
+
+1. Copy `.env.example` to `.env.local`.
+2. Set `LEVISION_CHAT_API_URL` to your chat endpoint.
+3. Optionally set `LEVISION_CHAT_API_KEY` for bearer auth.
+4. Optionally set `NEXT_PUBLIC_LEVISION_CHAT_LABEL` to change the label shown in the widget.
+
+The scaffold sends this payload shape to your endpoint:
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Break down our pick-and-roll coverage." }
+  ],
+  "app": "LeVision"
+}
+```
+
+The endpoint can respond with any one of these JSON shapes:
+
+```json
+{ "message": "Assistant reply" }
+```
+
+```json
+{ "content": "Assistant reply" }
+```
+
+```json
+{ "reply": { "message": "Assistant reply" } }
+```
+
+If no API URL is configured, the widget stays usable with a local stub response so the frontend flow can be developed immediately.
+
+## Development Admin Bypass
+
+For local development only, you can enable a temporary admin bypass button on the login page.
+
+1. Set `LEVISION_ENABLE_DEV_BYPASS=true` in `.env.local`.
+2. Set `NEXT_PUBLIC_LEVISION_ENABLE_DEV_BYPASS=true` in `.env.local`.
+3. Restart the dev server.
+
+When enabled outside production, the login page shows an `ENTER AS ADMIN` button that opens the dashboard with a mock admin profile. Signing out clears the bypass cookie.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

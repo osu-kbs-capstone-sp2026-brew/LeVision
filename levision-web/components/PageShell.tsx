@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import FloatingChat from '@/components/FloatingChat'
 
 export default function PageShell({ children }: { children: ReactNode }) {
   return (
@@ -144,6 +145,8 @@ export default function PageShell({ children }: { children: ReactNode }) {
       <div className="relative z-30">
         {children}
       </div>
+
+      <FloatingChat />
     </div>
   )
 }

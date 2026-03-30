@@ -9,6 +9,7 @@ import PageShell from '@/components/PageShell'
 
 export default function LoginPage() {
   const router = useRouter()
+  const devBypassEnabled = process.env.NEXT_PUBLIC_LEVISION_ENABLE_DEV_BYPASS === 'true'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -124,6 +125,15 @@ export default function LoginPage() {
                   </span>
                 ) : 'SIGN IN'}
               </button>
+
+              {devBypassEnabled && (
+                <a
+                  href="/api/dev-bypass"
+                  className="mt-3 flex w-full items-center justify-center rounded-sm border border-brand/40 bg-brand/8 py-[14px] font-display text-[0.95rem] tracking-[0.16em] text-brand transition-colors duration-200 hover:bg-brand/14"
+                >
+                  ENTER AS ADMIN
+                </a>
+              )}
 
               <div className="flex justify-between mt-[18px]">
                 <a

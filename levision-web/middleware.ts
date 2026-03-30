@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
+import { DEV_BYPASS_COOKIE, isDevBypassEnabled } from '@/lib/dev-bypass'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -29,16 +30,23 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const hasDevBypass =
+    isDevBypassEnabled() &&
+    request.cookies.get(DEV_BYPASS_COOKIE)?.value === 'admin'
 
   // Redirect unauthenticated users away from protected routes
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding'))) {
+  if (
+    !user &&
+    !hasDevBypass &&
+    (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding'))
+  ) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
   // Redirect authenticated users away from auth pages
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  if ((user || hasDevBypass) && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
