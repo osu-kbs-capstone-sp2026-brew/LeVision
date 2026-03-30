@@ -58,6 +58,16 @@ The endpoint can respond with any one of these JSON shapes:
 
 If no API URL is configured, the widget stays usable with a local stub response so the frontend flow can be developed immediately.
 
+## Development Admin Bypass
+
+For local development only, you can enable a temporary admin bypass button on the login page.
+
+1. Set `LEVISION_ENABLE_DEV_BYPASS=true` in `.env.local`.
+2. Set `NEXT_PUBLIC_LEVISION_ENABLE_DEV_BYPASS=true` in `.env.local`.
+3. Restart the dev server.
+
+When enabled outside production, the login page shows an `ENTER AS ADMIN` button that opens the dashboard with a mock admin profile. Signing out clears the bypass cookie.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

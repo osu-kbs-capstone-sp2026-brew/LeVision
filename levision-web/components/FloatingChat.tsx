@@ -77,18 +77,41 @@ export default function FloatingChat() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex items-end justify-end sm:bottom-7 sm:right-7">
-      {isOpen && (
-        <section
-          id="levision-chat-panel"
-          className="absolute bottom-20 right-0 w-[calc(100vw-2rem)] max-w-[380px] overflow-hidden rounded-[22px] border border-[rgba(200,136,58,0.24)] bg-[rgba(9,11,14,0.92)] shadow-[0_24px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-fade-up"
-        >
-          <div className="pointer-events-none absolute inset-0 opacity-90">
-            <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(200,136,58,0.95),transparent)]" />
-            <div className="absolute -right-10 top-0 h-28 w-28 rounded-full bg-brand/15 blur-3xl" />
-            <div className="absolute -left-16 bottom-10 h-32 w-32 rounded-full bg-brand/10 blur-3xl" />
-          </div>
+    <div className="pointer-events-none fixed inset-y-0 right-0 z-50 flex items-center">
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        aria-expanded={isOpen}
+        aria-controls="levision-chat-panel"
+        className={`pointer-events-auto group absolute right-0 top-1/2 flex -translate-y-1/2 translate-x-[1px] items-center gap-3 rounded-l-[22px] border border-r-0 border-[rgba(200,136,58,0.32)] bg-[linear-gradient(180deg,rgba(19,22,27,0.96),rgba(9,11,14,0.96))] px-4 py-5 text-offwhite shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-md transition-[right,background-color] duration-300 cursor-pointer ${
+          isOpen ? 'right-[min(24rem,calc(100vw-2rem))]' : 'right-0'
+        }`}
+      >
+        <span className="absolute inset-y-3 left-0 w-px bg-[linear-gradient(180deg,transparent,rgba(200,136,58,0.95),transparent)]" />
+        <span className="absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(200,136,58,0.5),transparent)]" />
+        <span className="flex flex-col items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-brand shadow-[0_0_14px_rgba(200,136,58,0.9)]" />
+          <span className="[writing-mode:vertical-rl] rotate-180 font-display text-[0.82rem] tracking-[0.22em]">
+            {isOpen ? 'CLOSE CHAT' : 'OPEN CHAT'}
+          </span>
+        </span>
+      </button>
 
+      <section
+        id="levision-chat-panel"
+        aria-hidden={!isOpen}
+        className={`relative h-full w-[min(24rem,calc(100vw-2rem))] overflow-hidden border-l border-[rgba(200,136,58,0.24)] bg-[rgba(9,11,14,0.94)] shadow-[-24px_0_90px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-300 ${
+          isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'
+        }`}
+      >
+        <div className="pointer-events-none absolute inset-0 opacity-90">
+          <div className="absolute inset-y-0 left-0 w-px bg-[linear-gradient(180deg,transparent,rgba(200,136,58,0.95),transparent)]" />
+          <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(200,136,58,0.95),transparent)]" />
+          <div className="absolute -left-10 top-10 h-28 w-28 rounded-full bg-brand/15 blur-3xl" />
+          <div className="absolute -right-16 bottom-10 h-32 w-32 rounded-full bg-brand/10 blur-3xl" />
+        </div>
+
+        <div className="relative flex h-full flex-col">
           <div className="relative border-b border-white/8 px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -110,7 +133,7 @@ export default function FloatingChat() {
             </div>
           </div>
 
-          <div className="relative max-h-[420px] min-h-[320px] overflow-y-auto px-4 py-4 chat-scroll">
+          <div className="relative min-h-0 flex-1 overflow-y-auto px-4 py-4 chat-scroll">
             <div className="flex flex-col gap-3">
               {messages.map((message, index) => {
                 const isUser = message.role === 'user'
@@ -173,22 +196,8 @@ export default function FloatingChat() {
               {error && <p className="text-[0.72rem] text-accent">{error}</p>}
             </div>
           </form>
-        </section>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setIsOpen((current) => !current)}
-        aria-expanded={isOpen}
-        aria-controls="levision-chat-panel"
-        className="group relative flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(200,136,58,0.32)] bg-[radial-gradient(circle_at_30%_30%,rgba(232,168,90,0.95),rgba(200,136,58,0.9)_48%,rgba(125,81,28,0.95)_100%)] text-pitch shadow-[0_20px_60px_rgba(0,0,0,0.45)] transition-transform duration-200 hover:scale-[1.03] cursor-pointer"
-      >
-        <span className="absolute inset-0 rounded-full border border-brand/30 animate-chat-ring" />
-        <span className="absolute inset-2 rounded-full border border-white/20" />
-        <span className="font-display text-[0.78rem] tracking-[0.18em]">
-          {isOpen ? 'CLOSE' : 'CHAT'}
-        </span>
-      </button>
+        </div>
+      </section>
     </div>
   )
 }
