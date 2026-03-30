@@ -1,7 +1,19 @@
+export type UserRole = 'coach' | 'player' | 'fan'
+
+/** Maps legacy DB values to current roles (`analyst` → `fan`). */
+export function normalizeUserRole(
+  value: string | null | undefined,
+): UserRole | null {
+  if (value == null || value === '') return null
+  if (value === 'analyst') return 'fan'
+  if (value === 'coach' || value === 'player' || value === 'fan') return value
+  return null
+}
+
 export type Profile = {
   id: string
   email: string | null
-  role: 'coach' | 'player' | 'analyst' | null
+  role: UserRole | null
   onboarding_complete: boolean
   onboarding_step: number
   created_at: string

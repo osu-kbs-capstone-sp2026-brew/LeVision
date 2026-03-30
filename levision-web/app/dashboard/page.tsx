@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { Profile } from '@/lib/types'
+import { normalizeUserRole, type Profile } from '@/lib/types'
 import PageShell from '@/components/PageShell'
 import RoleSwitcher from '@/components/RoleSwitcher'
+import { UserRoleProvider } from '@/components/UserRoleProvider'
 import { signOut } from './actions'
 import DashboardTabs from './DashboardTabs'
 import Image from 'next/image'
@@ -30,6 +31,10 @@ export default async function DashboardPage() {
 
   return (
     <PageShell>
+      <UserRoleProvider
+        userId={profile.id}
+        initialRole={normalizeUserRole(profile.role)}
+      >
       <div className="min-h-screen flex flex-col">
 
         {/* Navbar */}
@@ -44,9 +49,7 @@ export default async function DashboardPage() {
 
           {/* Right side */}
           <div className="flex items-center gap-5">
-            {profile.role && (
-              <RoleSwitcher userId={profile.id} initialRole={profile.role} />
-            )}
+            <RoleSwitcher />
             <span className="text-[0.78rem] text-muted font-light tracking-[0.04em] hidden sm:block">
               {profile.email}
             </span>
@@ -65,6 +68,7 @@ export default async function DashboardPage() {
         <DashboardTabs profile={profile} />
 
       </div>
+      </UserRoleProvider>
     </PageShell>
   )
 }

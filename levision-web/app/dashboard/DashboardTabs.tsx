@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import type { Profile, Game } from '@/lib/types'
+import { RoleSwitch } from '@/components/role-ui'
+import FootageViewTab from '@/components/FootageViewTab'
 
-type Tab = 'upload' | 'search' | 'live' | 'past'
+type Tab = 'view' | 'upload' | 'search' | 'past'
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'view',   label: 'View Footage' },
   { id: 'upload', label: 'Upload Footage' },
   { id: 'search', label: 'Search' },
-  { id: 'live',   label: 'Live Games' },
   { id: 'past',   label: 'Past Games' }
 ]
 
@@ -485,11 +487,11 @@ const MOCK_GAMES: Game[] = [
 ]
 
 export default function DashboardTabs({ profile }: { profile: Profile }) {
-  const [activeTab, setActiveTab] = useState<Tab>('upload')
+  const [activeTab, setActiveTab] = useState<Tab>('view')
   const [selectedGame, setSelectedGame] = useState<string | null>(null)
 
   return (
-    <main className="flex-1 flex flex-col px-8 pt-10 pb-16 max-w-[1100px] w-full mx-auto">
+    <main className="flex-1 flex flex-col px-8 pt-10 pb-16 max-w-[1280px] w-full mx-auto">
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-[rgba(200,136,58,0.15)] mb-10">
@@ -511,6 +513,9 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
       {/* Tab panels */}
       <div className="animate-fade-up" key={activeTab}>
 
+        {/* ── View Footage (playback library — separate from upload ingest) ── */}
+        {activeTab === 'view' && <FootageViewTab />}
+
         {/* ── Upload ── */}
         {activeTab === 'upload' && (
           <div className="flex flex-col">
@@ -518,7 +523,8 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
               Upload New Footage
             </h2>
             <p className="text-[0.84rem] text-muted font-light mb-8">
-              Drop game film, practice sessions, or highlight cuts.
+              Send game film to ingest. Viewing uses a different pipeline — open{' '}
+              <span className="text-muted/80">View Footage</span> once processing finishes.
             </p>
 
             {/* Upload zone */}
@@ -543,11 +549,11 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
 
             {/* Recent uploads placeholder */}
             <p className="text-[0.74rem] text-muted/50 font-light">
-              {profile.role === 'coach'
-                ? 'No plays saved. Even Phil Jackson wrote things down.'
-                : profile.role === 'analyst'
-                ? "Nothing here. Emptier than Cleveland's trophy case before 2016."
-                : "No footage yet. LeBron didn't become LeBron by skipping film."}
+              <RoleSwitch
+                coach="No plays saved. Even Phil Jackson wrote things down."
+                fan="Nothing here. Emptier than Cleveland's trophy case before 2016."
+                player="No footage yet. LeBron didn't become LeBron by skipping film."
+              />
             </p>
           </div>
         )}
@@ -575,31 +581,6 @@ export default function DashboardTabs({ profile }: { profile: Profile }) {
             <p className="text-[0.74rem] text-muted/50 font-light">
               Upload footage to start building your searchable library.
             </p>
-          </div>
-        )}
-
-        {/* ── Live Games ── */}
-        {activeTab === 'live' && (
-          <div className="flex flex-col">
-            <h2 className="font-display text-offwhite text-[clamp(1.6rem,3vw,2.2rem)] tracking-[0.04em] mb-2">
-              Live Games
-            </h2>
-            <p className="text-[0.84rem] text-muted font-light mb-8">
-              Track in-progress games and pull real-time stats.
-            </p>
-
-            {/* Empty state */}
-            <div className="border border-[rgba(200,136,58,0.12)] rounded-sm p-10 text-center bg-[rgba(200,136,58,0.015)]">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <span className="w-2 h-2 rounded-full bg-muted/30" />
-                <span className="text-[0.72rem] tracking-[0.14em] uppercase text-muted/50 font-body">
-                  No games live right now
-                </span>
-              </div>
-              <p className="text-[0.78rem] text-muted/40 font-light max-w-[320px] mx-auto">
-                Live game tracking will appear here when games are in progress.
-              </p>
-            </div>
           </div>
         )}
 

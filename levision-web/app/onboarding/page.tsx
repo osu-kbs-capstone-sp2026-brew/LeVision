@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PageShell from '@/components/PageShell'
+import { normalizeUserRole, type UserRole } from '@/lib/types'
 
-type Role = 'coach' | 'player' | 'analyst'
-
-const ROLES: { id: Role; name: string; desc: string; remark: string }[] = [
+const ROLES: { id: UserRole; name: string; desc: string; remark: string }[] = [
   {
     id: 'coach',
     name: 'Coach',
@@ -21,8 +20,8 @@ const ROLES: { id: Role; name: string; desc: string; remark: string }[] = [
     remark: 'LeBron watches more film than you.',
   },
   {
-    id: 'analyst',
-    name: 'Analyst',
+    id: 'fan',
+    name: 'Fan',
     desc: 'The numbers behind every possession.',
     remark: 'Moneyball was just the beginning.',
   },
@@ -34,7 +33,7 @@ export default function OnboardingPage() {
   const [transitioning, setTransitioning] = useState(false)
   const [step, setStep]                 = useState(0)
   const [userId, setUserId]             = useState<string | null>(null)
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null)
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
   const [completing, setCompleting]     = useState(false)
 
   // Load user + restore step and role from DB
@@ -58,7 +57,7 @@ export default function OnboardingPage() {
 
       if (profile) {
         if (profile.onboarding_step) setStep(profile.onboarding_step)
-        if (profile.role) setSelectedRole(profile.role as Role)
+        if (profile.role) setSelectedRole(normalizeUserRole(profile.role))
       }
 
       setIsLoading(false)
@@ -77,7 +76,7 @@ export default function OnboardingPage() {
     setTransitioning(false)
   }
 
-  async function handleRoleSelect(role: Role) {
+  async function handleRoleSelect(role: UserRole) {
     if (!userId) return
     setSelectedRole(role)
     const supabase = createClient()

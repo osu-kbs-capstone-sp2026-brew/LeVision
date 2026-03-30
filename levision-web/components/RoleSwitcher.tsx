@@ -2,26 +2,23 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { UserRole } from '@/lib/types'
+import { useUserRole } from '@/components/UserRoleProvider'
 
-type Role = 'coach' | 'player' | 'analyst'
-
-type Props = {
-  userId: string
-  initialRole: Role
-}
-
-const ROLE_LABELS: { id: Role; label: string }[] = [
+const ROLE_LABELS: { id: UserRole; label: string }[] = [
   { id: 'coach',   label: 'Coach' },
   { id: 'player',  label: 'Player' },
-  { id: 'analyst', label: 'Analyst' },
+  { id: 'fan', label: 'Fan' },
 ]
 
-export default function RoleSwitcher({ userId, initialRole }: Props) {
+export default function RoleSwitcher() {
+  const { userId, role, setRole } = useUserRole()
   const [open, setOpen] = useState(false)
-  const [role, setRole] = useState<Role>(initialRole)
   const [saving, setSaving] = useState(false)
 
-  async function handleSelect(nextRole: Role) {
+  if (!role) return null
+
+  async function handleSelect(nextRole: UserRole) {
     if (saving || nextRole === role) {
       setOpen(false)
       return
