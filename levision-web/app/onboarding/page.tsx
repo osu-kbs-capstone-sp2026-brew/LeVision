@@ -1,10 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PageShell from '@/components/PageShell'
 import { normalizeUserRole, type UserRole } from '@/lib/types'
+
+type UploadStatus = 'queued' | 'uploading' | 'uploaded' | 'invalid' | 'failed'
+
+type UploadItem = {
+  id: string
+  file: File
+  status: UploadStatus
+  message?: string
+  uploadedUrl?: string
+}
 
 const ROLES: { id: UserRole; name: string; desc: string; remark: string }[] = [
   {
@@ -35,6 +45,13 @@ export default function OnboardingPage() {
   const [userId, setUserId]             = useState<string | null>(null)
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
   const [completing, setCompleting]     = useState(false)
+  const [uploads, setUploads]           = useState<UploadItem[]>([])
+  const [isDragging, setIsDragging]     = useState(false)
+  const [isUploading, setIsUploading]   = useState(false)
+  const fileInputRef                    = useRef<HTMLInputElement | null>(null)
+
+  const acceptedFormats = '.mp4,.mov,.avi,.mkv,.webm,.m4v'
+  const acceptedExtensions = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'])
 
   // Load user + restore step and role from DB
   useEffect(() => {
@@ -83,9 +100,117 @@ export default function OnboardingPage() {
     await supabase.from('profiles').update({ role }).eq('id', userId)
   }
 
+  const isVideoFile = (file: File) => {
+    if (file.type.startsWith('video/')) return true
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    return !!extension && acceptedExtensions.has(extension)
+  }
+
+  const queueFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return
+
+    const next: UploadItem[] = Array.from(fileList).map((file) => {
+      const valid = isVideoFile(file)
+      return {
+        id: `${file.name}-${file.size}-${file.lastModified}`,
+        file,
+        status: valid ? 'queued' : 'invalid',
+        message: valid ? 'Queued for ingest' : 'Only video files are allowed',
+      }
+    })
+
+    setUploads((prev) => [...next, ...prev])
+  }
+
+  const removeUpload = (id: string) => {
+    setUploads((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  const uploadQueuedFiles = async () => {
+    const queuedItems = uploads.filter((item) => item.status === 'queued')
+    if (queuedItems.length === 0) return true
+
+    setIsUploading(true)
+    setUploads((prev) =>
+      prev.map((item) =>
+        item.status === 'queued'
+          ? { ...item, status: 'uploading', message: 'Uploading...' }
+          : item
+      )
+    )
+
+    const uploadResults = await Promise.all(
+      queuedItems.map(async (item) => {
+        const formData = new FormData()
+        formData.append('file', item.file)
+
+        try {
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          const payload = (await response.json()) as {
+            key?: string
+            url?: string
+            error?: string
+          }
+
+          if (!response.ok) {
+            return {
+              id: item.id,
+              status: 'failed' as UploadStatus,
+              message: response.status === 413 ? 'File too big (max 300MB)' : (payload.error ?? 'Upload failed'),
+              uploadedUrl: undefined,
+            }
+          }
+
+          return {
+            id: item.id,
+            status: 'uploaded' as UploadStatus,
+            message: 'Uploaded successfully',
+            uploadedUrl: payload.url ?? undefined,
+          }
+        } catch {
+          return {
+            id: item.id,
+            status: 'failed' as UploadStatus,
+            message: 'Upload failed due to a network error',
+            uploadedUrl: undefined,
+          }
+        }
+      })
+    )
+
+    const resultsById = new Map(uploadResults.map((result) => [result.id, result]))
+
+    setUploads((prev) =>
+      prev.map((item) => {
+        const result = resultsById.get(item.id)
+        if (!result) return item
+        return {
+          ...item,
+          status: result.status,
+          message: result.message,
+          uploadedUrl: result.uploadedUrl,
+        }
+      })
+    )
+
+    setIsUploading(false)
+    return uploadResults.every((result) => result.status === 'uploaded')
+  }
+
   async function handleComplete() {
     if (!userId || completing) return
     setCompleting(true)
+
+    const uploadSucceeded = await uploadQueuedFiles()
+    if (!uploadSucceeded) {
+      setCompleting(false)
+      return
+    }
+
     const supabase = createClient()
     await supabase
       .from('profiles')
@@ -257,7 +382,36 @@ export default function OnboardingPage() {
                   Drop your footage. We&apos;ll do what LeBron does at midnight.
                 </p>
 
-                <div className="border border-dashed border-[rgba(200,136,58,0.3)] rounded-sm p-10 text-center bg-[rgba(200,136,58,0.025)] hover:border-brand hover:bg-[rgba(200,136,58,0.06)] transition-colors duration-200 mb-8 cursor-default">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setIsDragging(true)
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    setIsDragging(false)
+                    queueFiles(event.dataTransfer.files)
+                  }}
+                  className={`w-full border border-dashed rounded-sm p-10 text-center transition-colors duration-200 mb-6 cursor-pointer ${
+                    isDragging
+                      ? 'border-brand bg-[rgba(200,136,58,0.06)]'
+                      : 'border-[rgba(200,136,58,0.3)] bg-[rgba(200,136,58,0.025)] hover:border-brand hover:bg-[rgba(200,136,58,0.06)]'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={acceptedFormats}
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      queueFiles(event.target.files)
+                      event.target.value = ''
+                    }}
+                  />
                   <div className="font-display text-[1.25rem] tracking-[0.1em] text-offwhite mb-1.5">
                     Drop footage here or click to browse
                   </div>
@@ -271,23 +425,72 @@ export default function OnboardingPage() {
                       </span>
                     ))}
                   </div>
-                </div>
+                </button>
+
+                {uploads.length > 0 && (
+                  <div className="mb-8 border border-[rgba(200,136,58,0.12)] rounded-sm bg-[rgba(200,136,58,0.015)]">
+                    <div className="px-4 py-3 border-b border-[rgba(200,136,58,0.12)]">
+                      <p className="text-[0.74rem] tracking-[0.12em] uppercase text-muted">
+                        Selected files
+                      </p>
+                    </div>
+                    <div className="divide-y divide-[rgba(200,136,58,0.08)]">
+                      {uploads.map((item) => (
+                        <div key={item.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm text-offwhite truncate">{item.file.name}</p>
+                            <p
+                              className={`text-[0.7rem] mt-0.5 ${
+                                item.status === 'invalid'
+                                  ? 'text-red-300/80'
+                                  : item.status === 'failed'
+                                    ? 'text-red-300/80'
+                                    : item.status === 'uploaded'
+                                      ? 'text-green-300/80'
+                                      : 'text-muted'
+                              }`}
+                            >
+                              {item.message}
+                            </p>
+                            {item.uploadedUrl && (
+                              <a
+                                href={item.uploadedUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block mt-1 text-[0.68rem] text-brand hover:text-brand/80 transition-colors duration-200"
+                              >
+                                Open uploaded file
+                              </a>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeUpload(item.id)}
+                            className="text-[0.64rem] tracking-[0.1em] uppercase text-muted hover:text-offwhite transition-colors duration-200"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4">
                   <button
                     onClick={handleComplete}
-                    disabled={completing}
+                    disabled={completing || isUploading}
                     className="px-9 py-3.5 bg-brand hover:bg-brand-light disabled:opacity-50 text-pitch font-display tracking-widest rounded-sm transition-colors duration-200 relative overflow-hidden btn-shine cursor-pointer"
                   >
-                    {completing ? (
+                    {completing || isUploading ? (
                       <span className="flex items-center gap-2.5">
-                        <LoadingDots /> ENTERING
+                        <LoadingDots /> {uploads.some((item) => item.status === 'queued') ? 'UPLOADING' : 'ENTERING'}
                       </span>
-                    ) : 'ENTER THE ARENA'}
+                    ) : uploads.some((item) => item.status === 'queued') ? 'UPLOAD AND ENTER' : 'ENTER THE ARENA'}
                   </button>
                   <button
                     onClick={handleSkipUpload}
-                    disabled={completing}
+                    disabled={completing || isUploading}
                     className="text-muted hover:text-offwhite font-body text-[0.78rem] tracking-[0.06em] bg-transparent border-none transition-colors duration-200 cursor-pointer disabled:opacity-50"
                   >
                     Skip. Bold choice. LeBron never skips film.
