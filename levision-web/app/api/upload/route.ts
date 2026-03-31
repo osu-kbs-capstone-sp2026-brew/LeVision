@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
+const MAX_UPLOAD_SIZE_BYTES = 300 * 1024 * 1024
+const FILE_TOO_LARGE_MESSAGE = 'File too big (max 300MB).'
+
 const REQUIRED_ENV_VARS = [
   'R2_ACCOUNT_ID',
   'R2_ACCESS_KEY_ID',
@@ -38,6 +41,18 @@ function toUploadKey(filename: string) {
   return `uploads/${Date.now()}-${randomUUID()}__${safeBaseName}.${extension}`
 }
 
+function getContentLength(request: Request) {
+  const header = request.headers.get('content-length')
+  if (!header) return null
+
+  const parsed = Number.parseInt(header, 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function isFormDataParseFailure(error: unknown) {
+  return error instanceof TypeError && /Failed to parse body as FormData/i.test(error.message)
+}
+
 export async function POST(request: Request) {
   try {
     const missingEnv = getMissingEnvVars()
@@ -48,11 +63,31 @@ export async function POST(request: Request) {
       )
     }
 
-    const formData = await request.formData()
+    let formData: FormData
+
+    try {
+      formData = await request.formData()
+    } catch (error) {
+      const contentLength = getContentLength(request)
+
+      if (
+        isFormDataParseFailure(error) ||
+        (contentLength !== null && contentLength > MAX_UPLOAD_SIZE_BYTES)
+      ) {
+        return NextResponse.json({ error: FILE_TOO_LARGE_MESSAGE }, { status: 413 })
+      }
+
+      throw error
+    }
+
     const fileEntry = formData.get('file')
 
     if (!(fileEntry instanceof File)) {
       return NextResponse.json({ error: 'A file field is required.' }, { status: 400 })
+    }
+
+    if (fileEntry.size > MAX_UPLOAD_SIZE_BYTES) {
+      return NextResponse.json({ error: FILE_TOO_LARGE_MESSAGE }, { status: 413 })
     }
 
     if (!fileEntry.type.startsWith('video/')) {
