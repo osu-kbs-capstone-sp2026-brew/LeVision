@@ -1113,6 +1113,13 @@ class DataService:
         return fallback, STAT_FRIENDLY_LABELS.get(fallback, fallback.replace("_", " "))
 
     def _extract_stat_value(self, row: dict[str, Any], stat_field: str) -> Any:
+        if stat_field == "points" and "points" not in row:
+            is_home = row.get("team_is_home")
+            if is_home is True and "home_points" in row:
+                return row.get("home_points")
+            if is_home is False and "away_points" in row:
+                return row.get("away_points")
+
         if stat_field in row:
             return row.get(stat_field)
 

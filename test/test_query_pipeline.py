@@ -177,6 +177,34 @@ class QueryPipelineTests(unittest.TestCase):
         self.assertEqual(repaired.rank, 2)
         self.assertEqual(repaired.entity_hint, "that game")
 
+    def test_repair_converts_single_game_lookup_stat_query_to_latest_game(self) -> None:
+        query = StructuredQuery(
+            intent="stat_query",
+            entity_type="team",
+            player=None,
+            team="Cavs",
+            entity_hint=None,
+            stat="points_in_paint",
+            rank=None,
+            operation="single_game_lookup",
+            scope=QueryScope(
+                type="matchup_hint",
+                relative_date="last_night",
+                before_now=True,
+                opponent="Raptors",
+            ),
+        )
+
+        repaired = repair_structured_query(
+            query,
+            "how many points in the paint did the cavs score against the raptors last night",
+            now_local=datetime(2026, 4, 24, 10, 0, 0, tzinfo=LOCAL_TZ),
+        )
+
+        self.assertEqual(repaired.intent, "stat_query")
+        self.assertEqual(repaired.operation, "latest_game")
+        self.assertEqual(repaired.scope.type, "matchup_hint")
+
     def test_game_stat_query_forwards_rank_to_service(self) -> None:
         query = StructuredQuery(
             intent="stat_query",
@@ -200,6 +228,29 @@ class QueryPipelineTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(service.last_leader_kwargs["rank"], 2)
         self.assertEqual(result["result"]["leader"]["rank"], 2)
+
+    def test_team_points_uses_home_or_away_score_from_context(self) -> None:
+        service = object.__new__(DataService)
+
+        home_value = service._extract_stat_value(
+            {
+                "team_is_home": True,
+                "home_points": 112,
+                "away_points": 104,
+            },
+            "points",
+        )
+        away_value = service._extract_stat_value(
+            {
+                "team_is_home": False,
+                "home_points": 112,
+                "away_points": 104,
+            },
+            "points",
+        )
+
+        self.assertEqual(home_value, 112)
+        self.assertEqual(away_value, 104)
 
     def test_resolve_team_supports_common_aliases(self) -> None:
         service = object.__new__(DataService)

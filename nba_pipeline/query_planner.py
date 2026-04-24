@@ -624,6 +624,13 @@ def repair_structured_query(
 
     if (
         repaired_intent == "stat_query"
+        and repaired_operation == "single_game_lookup"
+        and repaired_scope_type in {"matchup_hint", "game_hint", "specific_game", "date", "relative_date"}
+    ):
+        repaired_operation = "latest_game"
+
+    if (
+        repaired_intent == "stat_query"
         and repaired_scope_type in {"matchup_hint", "game_hint", "specific_game", "date", "relative_date"}
         and repaired_operation == "game_log"
     ):
