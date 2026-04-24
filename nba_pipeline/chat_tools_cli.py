@@ -38,6 +38,11 @@ def _print(payload: dict[str, Any], as_json: bool) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run deterministic NBA chat tools.")
     parser.add_argument("--query", help="Natural-language query for tool inference.")
+    parser.add_argument(
+        "--history-json",
+        default="[]",
+        help="Optional JSON array of prior chat messages for history-aware planning.",
+    )
     parser.add_argument("--tool", help="Direct tool name to call.")
     parser.add_argument(
         "--args-json",
@@ -99,7 +104,10 @@ def main() -> None:
             query = (args.query or "").strip()
             if not query:
                 raise ValueError("Provide --query or --tool")
-            payload = answer_query(query)
+            history = json.loads(args.history_json)
+            if not isinstance(history, list):
+                raise ValueError("--history-json must decode to a JSON array")
+            payload = answer_query(query, conversation_history=history)
 
         _print(payload, as_json=args.json)
     except Exception as exc:

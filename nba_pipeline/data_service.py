@@ -57,6 +57,8 @@ STAT_ALIASES: dict[str, str] = {
     "rebound": "rebounds",
     "reb": "rebounds",
     "rebs": "rebounds",
+    "offensiverebounds": "offensive_rebounds",
+    "defensiverebounds": "defensive_rebounds",
     "steals": "steals",
     "stl": "steals",
     "blocks": "blocks",
@@ -68,34 +70,174 @@ STAT_ALIASES: dict[str, str] = {
     "mins": "minutes",
     "min": "minutes",
     "fouls": "fouls",
-    "plusminus": "plusMinus",
-    "plus_minus": "plusMinus",
-    "+/-": "plusMinus",
-    "plus": "plusMinus",
-    "fgmade": "fgMade",
-    "fgattempted": "fgAttempted",
-    "threeptrmade": "threePtrMade",
-    "threeptrattempted": "threePtrAttempted",
-    "ftmade": "ftMade",
-    "ftattempted": "ftAttempted",
+    "starter": "starter",
+    "didnotplay": "did_not_play",
+    "dnp": "did_not_play",
+    "reason": "reason",
+    "ejected": "ejected",
+    "plusminus": "plus_minus",
+    "plus": "plus_minus",
+    "fgmade": "fg_made",
+    "fgattempted": "fg_attempted",
+    "fgm": "fg_made",
+    "fga": "fg_attempted",
+    "threeptrmade": "three_ptr_made",
+    "threeptrattempted": "three_ptr_attempted",
+    "threepointersmade": "three_ptr_made",
+    "threepointersattempted": "three_ptr_attempted",
+    "threepointmade": "three_ptr_made",
+    "threepointattempted": "three_ptr_attempted",
+    "threeptmade": "three_ptr_made",
+    "threeptattempted": "three_ptr_attempted",
+    "3pm": "three_ptr_made",
+    "3pa": "three_ptr_attempted",
+    "3ptm": "three_ptr_made",
+    "3pta": "three_ptr_attempted",
+    "ftmade": "ft_made",
+    "ftattempted": "ft_attempted",
+    "ftm": "ft_made",
+    "fta": "ft_attempted",
+    "season": "season",
+    "date": "date",
+    "status": "status",
+    "venue": "venue",
+    "hometeam": "home_team",
+    "awayteam": "away_team",
+    "homepoints": "home_points",
+    "awaypoints": "away_points",
+    "opponent": "opponent",
+    "teamishome": "team_is_home",
+    "fieldgoalpercentage": "field_goal_percentage",
+    "fgmade": "fg_made",
+    "fgattempted": "fg_attempted",
+    "threepointfgmade": "three_point_fg_made",
+    "threepointfgattempted": "three_point_fg_attempted",
+    "freethrowsmade": "free_throws_made",
+    "freethrowsattempted": "free_throws_attempted",
+    "threepointfgpercentage": "three_point_fg_percentage",
+    "threepointpercentage": "three_point_fg_percentage",
+    "freethrowpercentage": "free_throw_percentage",
+    "totalrebounds": "total_rebounds",
+    "teamturnovers": "team_turnovers",
+    "totalturnovers": "total_turnovers",
+    "technicalfouls": "technical_fouls",
+    "totaltechnicalfouls": "total_technical_fouls",
+    "flagrantfouls": "flagrant_fouls",
+    "turnoverpoints": "turnover_points",
+    "fastbreakpoints": "fast_break_points",
+    "pointsinpaint": "points_in_paint",
+    "largestlead": "largest_lead",
+    "fgmadefgattempted": "fg_made_fg_attempted",
+    "fieldgoalsmadefieldgoalsattempted": "fg_made_fg_attempted",
+    "threepointfgmadethreepointfgattempted": "three_point_fg_made_three_point_fg_attempted",
+    "threepointfieldgoalsmadethreepointfieldgoalsattempted": "three_point_fg_made_three_point_fg_attempted",
+    "freethrowsmadefreethrowsattempted": "free_throws_made_free_throws_attempted",
 }
 
 STAT_FRIENDLY_LABELS: dict[str, str] = {
     "points": "points",
     "assists": "assists",
     "rebounds": "rebounds",
+    "offensive_rebounds": "offensive rebounds",
+    "defensive_rebounds": "defensive rebounds",
     "steals": "steals",
     "blocks": "blocks",
     "turnovers": "turnovers",
     "minutes": "minutes",
     "fouls": "fouls",
-    "plusMinus": "plus/minus",
-    "fgMade": "field goals made",
-    "fgAttempted": "field goals attempted",
-    "threePtrMade": "three-pointers made",
-    "threePtrAttempted": "three-pointers attempted",
-    "ftMade": "free throws made",
-    "ftAttempted": "free throws attempted",
+    "starter": "starter status",
+    "did_not_play": "did-not-play status",
+    "reason": "reason",
+    "ejected": "ejection status",
+    "plus_minus": "plus/minus",
+    "fg_made": "field goals made",
+    "fg_attempted": "field goals attempted",
+    "three_ptr_made": "three-pointers made",
+    "three_ptr_attempted": "three-pointers attempted",
+    "ft_made": "free throws made",
+    "ft_attempted": "free throws attempted",
+    "season": "season",
+    "date": "game date",
+    "status": "game status",
+    "venue": "venue",
+    "home_team": "home team",
+    "away_team": "away team",
+    "home_points": "home points",
+    "away_points": "away points",
+    "opponent": "opponent",
+    "team_is_home": "home/away flag",
+    "field_goal_percentage": "field goal percentage",
+    "three_point_fg_percentage": "three-point percentage",
+    "free_throw_percentage": "free throw percentage",
+    "total_rebounds": "team total rebounds",
+    "team_turnovers": "team turnovers",
+    "total_turnovers": "total turnovers",
+    "technical_fouls": "technical fouls",
+    "total_technical_fouls": "total technical fouls",
+    "flagrant_fouls": "flagrant fouls",
+    "turnover_points": "points off turnovers",
+    "fast_break_points": "fast break points",
+    "points_in_paint": "points in paint",
+    "largest_lead": "largest lead",
+    "fg_made_fg_attempted": "field goals made-attempted",
+    "three_point_fg_made_three_point_fg_attempted": "three-point field goals made-attempted",
+    "free_throws_made_free_throws_attempted": "free throws made-attempted",
+}
+
+TEAM_STAT_ONLY_FIELDS: set[str] = {
+    "fg_made",
+    "fg_attempted",
+    "three_point_fg_made",
+    "three_point_fg_attempted",
+    "free_throws_made",
+    "free_throws_attempted",
+    "field_goal_percentage",
+    "three_point_fg_percentage",
+    "free_throw_percentage",
+    "total_rebounds",
+    "team_turnovers",
+    "total_turnovers",
+    "technical_fouls",
+    "total_technical_fouls",
+    "flagrant_fouls",
+    "turnover_points",
+    "fast_break_points",
+    "points_in_paint",
+    "largest_lead",
+    "fg_made_fg_attempted",
+    "three_point_fg_made_three_point_fg_attempted",
+    "free_throws_made_free_throws_attempted",
+}
+
+TEAM_NICKNAME_ALIASES_BY_ABBR: dict[str, list[str]] = {
+    "ATL": ["hawks"],
+    "BOS": ["celts"],
+    "CHA": ["hornets"],
+    "CLE": ["cavs"],
+    "DAL": ["mavs"],
+    "DEN": ["nuggets"],
+    "DET": ["pistons"],
+    "GSW": ["dubs"],
+    "HOU": ["rockets"],
+    "IND": ["pacers"],
+    "LAC": ["clips"],
+    "LAL": ["lakers"],
+    "MEM": ["grizz", "grizzlies"],
+    "MIL": ["bucks"],
+    "MIN": ["wolves", "twolves", "t-wolves", "t wolves", "timberwolves"],
+    "NO": ["pels", "pelicans"],
+    "NOP": ["pels", "pelicans"],
+    "NY": ["knicks"],
+    "NYK": ["knicks"],
+    "OKC": ["thunder"],
+    "PHI": ["sixers", "76ers"],
+    "PHX": ["suns"],
+    "POR": ["blazers", "trail blazers", "trailblazers"],
+    "SAC": ["kings"],
+    "SAS": ["spurs"],
+    "TOR": ["raptors"],
+    "UTA": ["jazz"],
+    "WAS": ["wizards"],
 }
 
 
@@ -110,6 +252,54 @@ def clean_entity_query(value: Any) -> str:
     text = re.sub(r"['’]s\b", "", text, flags=re.IGNORECASE)
     text = re.sub(r"\s+", " ", text).strip(" ,.!?\"'")
     return text
+
+
+def team_candidate_names(team: dict[str, Any]) -> list[str]:
+    location = str(team.get("location") or "").strip()
+    name = str(team.get("name") or "").strip()
+    abbreviation = str(team.get("abbreviation") or "").strip().upper()
+    full_name = f"{location} {name}".strip()
+
+    candidates = [
+        abbreviation,
+        location,
+        name,
+        full_name,
+        full_name.replace(" ", ""),
+    ]
+    candidates.extend(TEAM_NICKNAME_ALIASES_BY_ABBR.get(abbreviation, []))
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        text = clean_entity_query(candidate)
+        if not text:
+            continue
+        key = normalize_text(text)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(text)
+    return deduped
+
+
+def to_numeric_stat_value(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value or "").strip()
+    if not text:
+        return None
+
+    cleaned = text.replace(" ", "")
+    if cleaned.startswith("+"):
+        cleaned = cleaned[1:]
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
 
 
 def similarity_score(query: str, candidate: str) -> float:
@@ -274,6 +464,13 @@ class DataService:
                 return team
         return None
 
+    def _player_by_id(self, player_id: str) -> Optional[dict[str, Any]]:
+        player_id_str = str(player_id)
+        for player in self._load_players():
+            if str(player.get("id")) == player_id_str:
+                return player
+        return None
+
     def _current_local_time(self) -> datetime:
         return datetime.now(LOCAL_TZ)
 
@@ -359,20 +556,11 @@ class DataService:
     def resolve_team(self, team_query: str) -> dict[str, Any]:
         teams = self._load_teams()
         candidates: list[tuple[dict[str, Any], list[str]]] = []
+        team_query = clean_entity_query(team_query)
         query_clean = normalize_text(team_query)
 
         for team in teams:
-            location = str(team.get("location") or "").strip()
-            name = str(team.get("name") or "").strip()
-            abbr = str(team.get("abbreviation") or "").strip()
-            names = [
-                abbr,
-                location,
-                name,
-                f"{location} {name}".strip(),
-                f"{location}{name}".strip(),
-            ]
-            candidates.append((team, [n for n in names if n]))
+            candidates.append((team, team_candidate_names(team)))
 
         exact_matches: list[dict[str, Any]] = []
         for team, names in candidates:
@@ -632,7 +820,7 @@ class DataService:
     def _get_game_row(self, event_id: str) -> Optional[dict[str, Any]]:
         response = (
             self.client.table("games")
-            .select("id,date,status,home_team,away_team,home_points,away_points,venue")
+            .select("id,date,status,home_team,away_team,home_points,away_points,venue,season")
             .eq("id", event_id)
             .limit(1)
             .execute()
@@ -648,6 +836,21 @@ class DataService:
             self.client.table("player_game_stats")
             .select("*")
             .eq("player_id", player_id)
+            .eq("game_id", event_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            return None
+        first = rows[0]
+        return first if isinstance(first, dict) else None
+
+    def _get_team_statistics_row(self, team_id: str, event_id: str) -> Optional[dict[str, Any]]:
+        response = (
+            self.client.table("team_statistics")
+            .select("*")
+            .eq("team_id", team_id)
             .eq("game_id", event_id)
             .limit(1)
             .execute()
@@ -897,28 +1100,80 @@ class DataService:
 
     def _resolve_stat_field(self, stat_name: str) -> tuple[str, str]:
         key = normalize_text(stat_name)
+        if not key:
+            raise ValueError("stat_name is required")
+
         field = STAT_ALIASES.get(key)
-        if not field:
+        if field:
+            return field, STAT_FRIENDLY_LABELS.get(field, field.replace("_", " "))
+
+        fallback = re.sub(r"[^a-z0-9]+", "_", str(stat_name or "").strip().lower()).strip("_")
+        if not fallback:
             raise ValueError(f"Unsupported stat '{stat_name}'")
-        return field, STAT_FRIENDLY_LABELS.get(field, field)
+        return fallback, STAT_FRIENDLY_LABELS.get(fallback, fallback.replace("_", " "))
 
     def _extract_stat_value(self, row: dict[str, Any], stat_field: str) -> Any:
         if stat_field in row:
             return row.get(stat_field)
 
-        fallback_map = {
-            "plusMinus": ["plusminus", "plus_minus", "plusMinus"],
-            "fgMade": ["fgmade", "fg_made", "fgMade"],
-            "fgAttempted": ["fgattempted", "fg_attempted", "fgAttempted"],
-            "threePtrMade": ["threeptrmade", "three_ptr_made", "threePtrMade"],
-            "threePtrAttempted": ["threeptrattempted", "three_ptr_attempted", "threePtrAttempted"],
-            "ftMade": ["ftmade", "ft_made", "ftMade"],
-            "ftAttempted": ["ftattempted", "ft_attempted", "ftAttempted"],
+        explicit_candidates: dict[str, list[str]] = {
+            "plus_minus": ["plusMinus", "plus_minus", "plusminus"],
+            "fg_made": ["fg_made", "fgMade", "fgMade-fgAttempted"],
+            "fg_attempted": ["fg_attempted", "fgAttempted"],
+            "three_ptr_made": ["three_ptr_made", "threePtrMade"],
+            "three_ptr_attempted": ["three_ptr_attempted", "threePtrAttempted"],
+            "ft_made": ["ft_made", "ftMade"],
+            "ft_attempted": ["ft_attempted", "ftAttempted"],
+            "three_point_fg_made": [
+                "three_point_fg_made",
+                "threePointFgMade",
+                "threePointFgMade-threePointFgAttempted",
+            ],
+            "three_point_fg_attempted": ["three_point_fg_attempted", "threePointFgAttempted"],
+            "free_throws_made": [
+                "free_throws_made",
+                "freeThrowsMade",
+                "freeThrowsMade-freeThrowsAttempted",
+            ],
+            "free_throws_attempted": ["free_throws_attempted", "freeThrowsAttempted"],
+            "fg_made_fg_attempted": ["fgMade-fgAttempted", "fg_made_fg_attempted"],
+            "three_point_fg_made_three_point_fg_attempted": [
+                "threePointFgMade-threePointFgAttempted",
+                "three_point_fg_made_three_point_fg_attempted",
+            ],
+            "free_throws_made_free_throws_attempted": [
+                "freeThrowsMade-freeThrowsAttempted",
+                "free_throws_made_free_throws_attempted",
+            ],
         }
-        candidates = fallback_map.get(stat_field, [])
-        for candidate in candidates:
+        for candidate in explicit_candidates.get(stat_field, []):
             if candidate in row:
                 return row.get(candidate)
+
+        target_norm = normalize_text(stat_field)
+        if not target_norm:
+            return None
+
+        for key, value in row.items():
+            if normalize_text(key) == target_norm:
+                return value
+        return None
+
+    def _extract_event_stat_value(
+        self,
+        stat_field: str,
+        stats_row: Optional[dict[str, Any]],
+        context: dict[str, Any],
+        game_row: Optional[dict[str, Any]],
+        team_stats_row: Optional[dict[str, Any]],
+    ) -> Any:
+        ordered_rows = [stats_row, context, game_row, team_stats_row]
+        for row in ordered_rows:
+            if not isinstance(row, dict):
+                continue
+            value = self._extract_stat_value(row, stat_field)
+            if value is not None:
+                return value
         return None
 
     def _build_game_context(
@@ -938,9 +1193,13 @@ class DataService:
         local_dt = self._parse_datetime_to_local(game_row.get("date"))
 
         return {
+            "game_id": game_row.get("id"),
+            "event_id": game_row.get("id"),
             "date": local_dt.date().isoformat() if local_dt else None,
             "game_datetime_local": local_dt.isoformat() if local_dt else None,
+            "season": game_row.get("season"),
             "status": game_row.get("status"),
+            "venue": game_row.get("venue"),
             "home_team": home_team,
             "away_team": away_team,
             "home_points": game_row.get("home_points"),
@@ -948,6 +1207,113 @@ class DataService:
             "opponent": opponent,
             "team_is_home": is_home,
         }
+
+    def _team_descriptor(
+        self,
+        team_id: Optional[str],
+        fallback_teams: Optional[list[dict[str, Any]]] = None,
+    ) -> dict[str, Any]:
+        team_id_str = str(team_id or "").strip()
+        if not team_id_str:
+            return {
+                "id": None,
+                "abbreviation": None,
+                "location": None,
+                "name": None,
+                "display_name": None,
+            }
+
+        team = self._team_by_id(team_id_str)
+        if not team and fallback_teams:
+            for row in fallback_teams:
+                if not isinstance(row, dict):
+                    continue
+                if str(row.get("id") or "") == team_id_str:
+                    team = row
+                    break
+
+        location = str((team or {}).get("location") or "").strip() or None
+        name = str((team or {}).get("name") or "").strip() or None
+        abbreviation = str((team or {}).get("abbreviation") or "").strip().upper() or None
+        display_name = " ".join(part for part in [location, name] if part) or abbreviation
+        return {
+            "id": team_id_str,
+            "abbreviation": abbreviation,
+            "location": location,
+            "name": name,
+            "display_name": display_name,
+        }
+
+    def _build_game_details(
+        self,
+        game_row: Optional[dict[str, Any]],
+        fallback_teams: Optional[list[dict[str, Any]]] = None,
+    ) -> Optional[dict[str, Any]]:
+        if not isinstance(game_row, dict):
+            return None
+
+        event_id = str(game_row.get("id") or "").strip() or None
+        home_team_id = str(game_row.get("home_team") or "").strip() or None
+        away_team_id = str(game_row.get("away_team") or "").strip() or None
+        home_team = self._team_descriptor(home_team_id, fallback_teams=fallback_teams)
+        away_team = self._team_descriptor(away_team_id, fallback_teams=fallback_teams)
+        local_dt = self._parse_datetime_to_local(game_row.get("date"))
+        home_points = game_row.get("home_points")
+        away_points = game_row.get("away_points")
+
+        winner = None
+        loser = None
+        home_points_num = to_numeric_stat_value(home_points)
+        away_points_num = to_numeric_stat_value(away_points)
+        if home_points_num is not None and away_points_num is not None:
+            if home_points_num > away_points_num:
+                winner = home_team
+                loser = away_team
+            elif away_points_num > home_points_num:
+                winner = away_team
+                loser = home_team
+
+        return {
+            "event_id": event_id,
+            "game_id": event_id,
+            "date": local_dt.date().isoformat() if local_dt else None,
+            "game_datetime_local": local_dt.isoformat() if local_dt else None,
+            "status": game_row.get("status"),
+            "season": game_row.get("season"),
+            "venue": game_row.get("venue"),
+            "home_team": home_team,
+            "away_team": away_team,
+            "home_points": home_points,
+            "away_points": away_points,
+            "winner": winner,
+            "loser": loser,
+        }
+
+    def _load_game_row_with_fallback(
+        self,
+        event_id: str,
+    ) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]], Optional[list[dict[str, Any]]], str]:
+        normalized_event_id = str(event_id).strip()
+        if not normalized_event_id:
+            raise ValueError("event_id is required")
+
+        load_info: Optional[dict[str, Any]] = None
+        source = "supabase"
+        fallback_teams: Optional[list[dict[str, Any]]] = None
+
+        game_row = self._get_game_row(normalized_event_id)
+        if game_row is None:
+            load_info = self.ensure_game_ingested(event_id=normalized_event_id)
+            source = str(load_info.get("source") or "espn_summary")
+            game_row = self._get_game_row(normalized_event_id)
+            if game_row is None and isinstance(load_info.get("game"), dict):
+                game_row = load_info.get("game")
+        if isinstance(load_info, dict):
+            parsed = load_info.get("parsed")
+            if isinstance(parsed, dict) and isinstance(parsed.get("teams"), list):
+                fallback_teams = [row for row in parsed["teams"] if isinstance(row, dict)]
+
+        return game_row, load_info, fallback_teams, source
 
     def _find_player_stat_in_parsed_rows(
         self,
@@ -1006,14 +1372,69 @@ class DataService:
         load_info: Optional[dict[str, Any]] = None
         source = "supabase"
         used_parsed_fallback = False
+        require_team_stats = stat_field in TEAM_STAT_ONLY_FIELDS
 
         stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-        value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
-        if stats_row is None or value is None:
-            load_info = self.ensure_game_ingested(event_id=event_id, required_player_id=player_id)
+        game_row = self._get_game_row(event_id=event_id)
+        team_stats_row = (
+            self._get_team_statistics_row(team_id=team_id, event_id=event_id)
+            if require_team_stats
+            else None
+        )
+        context = self._build_game_context(game_row=game_row, team_id=team_id)
+        value = self._extract_event_stat_value(
+            stat_field=stat_field,
+            stats_row=stats_row,
+            context=context,
+            game_row=game_row,
+            team_stats_row=team_stats_row,
+        )
+
+        needs_ingestion = (
+            value is None
+            or stats_row is None
+            or game_row is None
+            or (require_team_stats and team_stats_row is None)
+        )
+
+        if needs_ingestion:
+            load_info = self.ensure_game_ingested(
+                event_id=event_id,
+                required_player_id=player_id,
+                require_team_stats=require_team_stats,
+            )
             source = str(load_info.get("source") or "espn_summary")
             stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-            value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
+            game_row = self._get_game_row(event_id=event_id)
+            if game_row is None and isinstance(load_info, dict):
+                loaded_game = load_info.get("game")
+                if isinstance(loaded_game, dict):
+                    game_row = loaded_game
+            team_stats_row = (
+                self._get_team_statistics_row(team_id=team_id, event_id=event_id)
+                if require_team_stats
+                else None
+            )
+
+            fallback_teams = None
+            if isinstance(load_info, dict):
+                parsed = load_info.get("parsed")
+                if isinstance(parsed, dict) and isinstance(parsed.get("teams"), list):
+                    fallback_teams = [row for row in parsed["teams"] if isinstance(row, dict)]
+            context = self._build_game_context(
+                game_row=game_row,
+                team_id=team_id,
+                fallback_teams=fallback_teams,
+            )
+
+            value = self._extract_event_stat_value(
+                stat_field=stat_field,
+                stats_row=stats_row,
+                context=context,
+                game_row=game_row,
+                team_stats_row=team_stats_row,
+            )
+
             if value is None:
                 parsed_row = self._find_player_stat_in_parsed_rows(
                     parsed=load_info.get("parsed"),
@@ -1022,10 +1443,16 @@ class DataService:
                 )
                 if parsed_row is not None:
                     stats_row = parsed_row
-                    value = self._extract_stat_value(parsed_row, stat_field)
+                    value = self._extract_event_stat_value(
+                        stat_field=stat_field,
+                        stats_row=parsed_row,
+                        context=context,
+                        game_row=game_row,
+                        team_stats_row=team_stats_row,
+                    )
                     used_parsed_fallback = True
 
-        if stats_row is None or value is None:
+        if value is None:
             if isinstance(load_info, dict):
                 LOGGER.warning(
                     "event_id=%s answer_source=none source=%s persistence_succeeded=%s persistence_error=%s",
@@ -1036,26 +1463,11 @@ class DataService:
                 )
             return None, source
 
-        game_row = self._get_game_row(event_id=event_id)
-        if game_row is None and isinstance(load_info, dict):
-            loaded_game = load_info.get("game")
-            if isinstance(loaded_game, dict):
-                game_row = loaded_game
-
-        fallback_teams = None
-        if isinstance(load_info, dict):
-            parsed = load_info.get("parsed")
-            if isinstance(parsed, dict) and isinstance(parsed.get("teams"), list):
-                fallback_teams = [row for row in parsed["teams"] if isinstance(row, dict)]
-
-        context = self._build_game_context(
-            game_row=game_row,
-            team_id=team_id,
-            fallback_teams=fallback_teams,
-        )
+        if not isinstance(context, dict):
+            context = {}
         opponent = context.get("opponent")
         if not isinstance(opponent, str) or not opponent.strip() or opponent.strip().isdigit():
-            return None, source
+            opponent = "UNK"
 
         if not is_final_status(context.get("status")):
             return None, source
@@ -1100,7 +1512,140 @@ class DataService:
                 "opponent": opponent.strip(),
                 "stat_value": value,
                 "value": value,
+                "stat_field": stat_field,
                 "status": context.get("status"),
+                "venue": context.get("venue"),
+                "season": context.get("season"),
+                "home_points": context.get("home_points"),
+                "away_points": context.get("away_points"),
+            },
+            source,
+        )
+
+    def _resolve_team_event_stat_row(
+        self,
+        team_id: str,
+        event_id: str,
+        stat_field: str,
+        now_local: datetime,
+        range_start_local: Optional[datetime] = None,
+        range_end_local: Optional[datetime] = None,
+    ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
+        load_info: Optional[dict[str, Any]] = None
+        source = "supabase"
+        require_team_stats = stat_field in TEAM_STAT_ONLY_FIELDS
+
+        game_row = self._get_game_row(event_id=event_id)
+        team_stats_row = self._get_team_statistics_row(team_id=team_id, event_id=event_id)
+        context = self._build_game_context(game_row=game_row, team_id=team_id)
+        value = self._extract_event_stat_value(
+            stat_field=stat_field,
+            stats_row=None,
+            context=context,
+            game_row=game_row,
+            team_stats_row=team_stats_row,
+        )
+
+        fetch_team_stats = require_team_stats or value is None
+        needs_ingestion = (
+            value is None
+            or game_row is None
+            or (fetch_team_stats and team_stats_row is None)
+        )
+        if needs_ingestion:
+            load_info = self.ensure_game_ingested(
+                event_id=event_id,
+                required_player_id=None,
+                require_team_stats=fetch_team_stats,
+            )
+            source = str(load_info.get("source") or "espn_summary")
+
+            game_row = self._get_game_row(event_id=event_id)
+            if game_row is None and isinstance(load_info, dict):
+                loaded_game = load_info.get("game")
+                if isinstance(loaded_game, dict):
+                    game_row = loaded_game
+
+            team_stats_row = self._get_team_statistics_row(team_id=team_id, event_id=event_id)
+
+            fallback_teams = None
+            if isinstance(load_info, dict):
+                parsed = load_info.get("parsed")
+                if isinstance(parsed, dict) and isinstance(parsed.get("teams"), list):
+                    fallback_teams = [row for row in parsed["teams"] if isinstance(row, dict)]
+
+            context = self._build_game_context(
+                game_row=game_row,
+                team_id=team_id,
+                fallback_teams=fallback_teams,
+            )
+            value = self._extract_event_stat_value(
+                stat_field=stat_field,
+                stats_row=None,
+                context=context,
+                game_row=game_row,
+                team_stats_row=team_stats_row,
+            )
+
+        if value is None:
+            if isinstance(load_info, dict):
+                LOGGER.warning(
+                    "event_id=%s team_stat answer_source=none source=%s persistence_succeeded=%s persistence_error=%s",
+                    event_id,
+                    source,
+                    bool(load_info.get("persistence_succeeded", True)),
+                    load_info.get("persistence_error"),
+                )
+            return None, source
+
+        if not isinstance(context, dict):
+            context = {}
+        opponent = context.get("opponent")
+        if not isinstance(opponent, str) or not opponent.strip() or opponent.strip().isdigit():
+            opponent = "UNK"
+
+        if not is_final_status(context.get("status")):
+            return None, source
+
+        local_dt = self._parse_datetime_to_local(
+            context.get("game_datetime_local") or context.get("date")
+        )
+        if local_dt is None:
+            return None, source
+        if local_dt.tzinfo is None:
+            local_dt = local_dt.replace(tzinfo=LOCAL_TZ)
+        local_dt = local_dt.astimezone(LOCAL_TZ)
+        if local_dt > now_local:
+            return None, source
+        if range_start_local and local_dt < range_start_local:
+            return None, source
+        if range_end_local and local_dt > range_end_local:
+            return None, source
+
+        answer_source = "db_only" if load_info is None else "after_ingestion"
+        LOGGER.info(
+            "event_id=%s team_stat answer_source=%s source=%s ingested=%s game_existed=%s persistence_succeeded=%s",
+            event_id,
+            answer_source,
+            source,
+            bool(load_info.get("ingested")) if isinstance(load_info, dict) else False,
+            bool(load_info.get("game_existed")) if isinstance(load_info, dict) else True,
+            bool(load_info.get("persistence_succeeded", True)) if isinstance(load_info, dict) else True,
+        )
+
+        return (
+            {
+                "game_id": event_id,
+                "event_id": event_id,
+                "date": local_dt.date().isoformat(),
+                "game_datetime_local": local_dt.isoformat(),
+                "opponent": opponent.strip(),
+                "stat_value": value,
+                "value": value,
+                "stat_field": stat_field,
+                "status": context.get("status"),
+                "venue": context.get("venue"),
+                "season": context.get("season"),
                 "home_points": context.get("home_points"),
                 "away_points": context.get("away_points"),
             },
@@ -1117,6 +1662,307 @@ class DataService:
         season_end = datetime(start_year + 1, 7, 1, 0, 0, 0, tzinfo=LOCAL_TZ) - timedelta(seconds=1)
         season_label = f"{start_year}-{str(start_year + 1)[-2:]}"
         return season_start, min(season_end, now_local), season_label
+
+    def get_game_details(self, event_id: str) -> dict[str, Any]:
+        normalized_event_id = str(event_id).strip()
+        if not normalized_event_id:
+            raise ValueError("event_id is required")
+
+        game_row, load_info, fallback_teams, source = self._load_game_row_with_fallback(normalized_event_id)
+        details = self._build_game_details(game_row, fallback_teams=fallback_teams)
+        if not isinstance(details, dict):
+            raise ValueError(f"Could not load game details for event_id={normalized_event_id}")
+
+        LOGGER.info(
+            "event_id=%s query=game_details answer_source=%s ingested=%s game_existed=%s persistence_succeeded=%s",
+            normalized_event_id,
+            source,
+            bool(load_info.get("ingested")) if isinstance(load_info, dict) else False,
+            bool(load_info.get("game_existed")) if isinstance(load_info, dict) else True,
+            bool(load_info.get("persistence_succeeded", True)) if isinstance(load_info, dict) else True,
+        )
+
+        return {
+            **details,
+            "source": source,
+        }
+
+    def resolve_game_by_hints(
+        self,
+        *,
+        team_query: Optional[str] = None,
+        opponent_query: Optional[str] = None,
+        teams: Optional[list[str]] = None,
+        target_date: Optional[date | datetime | str] = None,
+        event_id: Optional[str] = None,
+        before_now: bool = True,
+        recent_limit: int = 12,
+    ) -> dict[str, Any]:
+        normalized_event_id = str(event_id or "").strip()
+        if normalized_event_id:
+            game = self.get_game_details(normalized_event_id)
+            LOGGER.info(
+                "resolve_game direct_event_id=%s source=%s",
+                normalized_event_id,
+                game.get("source"),
+            )
+            return {
+                "event_id": normalized_event_id,
+                "game": game,
+                "source": game.get("source"),
+            }
+
+        team_hints = [str(item).strip() for item in (teams or []) if str(item).strip()]
+        primary_query = str(team_query or "").strip() or (team_hints[0] if team_hints else "")
+        secondary_query = str(opponent_query or "").strip() or (team_hints[1] if len(team_hints) > 1 else "")
+        if not primary_query:
+            raise ValueError("A primary team hint or event_id is required to resolve a game")
+
+        primary_team = self.resolve_team(primary_query)
+        opponent_team = self.resolve_team(secondary_query) if secondary_query else None
+        now_local = self._current_local_time()
+        target_day = parse_target_date(target_date) if target_date is not None else None
+
+        candidate_event_ids: list[str]
+        if target_day is not None:
+            candidate_event_ids = self._find_team_event_ids_for_date(
+                team_id=str(primary_team["id"]),
+                team_abbr=str(primary_team["abbreviation"]),
+                target_date=target_day,
+            )
+        else:
+            recent_events = self._discover_recent_team_events(
+                team_abbr=str(primary_team["abbreviation"]),
+                n=max(recent_limit, 6),
+                now_local=now_local,
+                windows=[21, 30, 45, 60],
+            )
+            candidate_event_ids = [str(item["event_id"]) for item in recent_events]
+
+        matches: list[tuple[datetime, dict[str, Any], str]] = []
+        for candidate_event_id in dict.fromkeys(candidate_event_ids):
+            game_row, _load_info, fallback_teams, source = self._load_game_row_with_fallback(candidate_event_id)
+            details = self._build_game_details(game_row, fallback_teams=fallback_teams)
+            if not isinstance(details, dict):
+                continue
+
+            local_dt = self._parse_datetime_to_local(
+                details.get("game_datetime_local") or details.get("date")
+            )
+            if before_now:
+                if local_dt is None or local_dt > now_local:
+                    continue
+                if not is_final_status(details.get("status")):
+                    continue
+
+            home_team = details.get("home_team") if isinstance(details.get("home_team"), dict) else {}
+            away_team = details.get("away_team") if isinstance(details.get("away_team"), dict) else {}
+            team_ids = {
+                str(home_team.get("id") or "").strip(),
+                str(away_team.get("id") or "").strip(),
+            }
+            if str(primary_team["id"]) not in team_ids:
+                continue
+            if opponent_team and str(opponent_team["id"]) not in team_ids:
+                continue
+
+            match_dt = local_dt or datetime(1970, 1, 1, tzinfo=LOCAL_TZ)
+            matches.append(
+                (
+                    match_dt,
+                    {
+                        **details,
+                        "source": source,
+                    },
+                    source,
+                )
+            )
+
+        if not matches:
+            raise ValueError("Could not resolve a matching game from the provided hints")
+
+        matches.sort(key=lambda item: item[0], reverse=True)
+        best_game = matches[0][1]
+        best_source = matches[0][2]
+        LOGGER.info(
+            "resolve_game team=%s opponent=%s target_date=%s event_id=%s source=%s",
+            primary_query,
+            secondary_query or None,
+            target_day.isoformat() if target_day else None,
+            best_game.get("event_id"),
+            best_source,
+        )
+        return {
+            "event_id": best_game.get("event_id"),
+            "game": best_game,
+            "source": best_source,
+        }
+
+    def get_game_stat_leader(
+        self,
+        *,
+        event_id: str,
+        stat_name: str,
+        direction: str = "max",
+        leader_entity_type: str = "player",
+        rank: int = 1,
+    ) -> dict[str, Any]:
+        normalized_event_id = str(event_id).strip()
+        if not normalized_event_id:
+            raise ValueError("event_id is required")
+        if direction not in {"max", "min"}:
+            raise ValueError("direction must be 'max' or 'min'")
+        if leader_entity_type not in {"player", "team"}:
+            raise ValueError("leader_entity_type must be 'player' or 'team'")
+        if rank <= 0:
+            raise ValueError("rank must be > 0")
+
+        require_team_stats = leader_entity_type == "team"
+        load_info = self.ensure_game_ingested(
+            event_id=normalized_event_id,
+            require_team_stats=require_team_stats,
+        )
+        source = str(load_info.get("source") or "espn_summary")
+        parsed = load_info.get("parsed") if isinstance(load_info, dict) else None
+
+        stat_field, stat_label = self._resolve_stat_field(stat_name)
+        game_row = self._get_game_row(normalized_event_id)
+        if game_row is None and isinstance(load_info.get("game"), dict):
+            game_row = load_info.get("game")
+
+        fallback_teams = None
+        if isinstance(parsed, dict) and isinstance(parsed.get("teams"), list):
+            fallback_teams = [row for row in parsed["teams"] if isinstance(row, dict)]
+        game = self._build_game_details(game_row, fallback_teams=fallback_teams)
+        if not isinstance(game, dict):
+            raise ValueError(f"Could not load game details for event_id={normalized_event_id}")
+
+        if leader_entity_type == "player":
+            response = (
+                self.client.table("player_game_stats")
+                .select("*")
+                .eq("game_id", normalized_event_id)
+                .execute()
+            )
+            rows = [row for row in (response.data or []) if isinstance(row, dict)]
+            if not rows and isinstance(parsed, dict) and isinstance(parsed.get("player_game_stats"), list):
+                rows = [
+                    row
+                    for row in parsed["player_game_stats"]
+                    if isinstance(row, dict) and str(row.get("game_id") or "") == normalized_event_id
+                ]
+
+            valued_rows: list[tuple[dict[str, Any], float]] = []
+            for row in rows:
+                numeric_value = to_numeric_stat_value(self._extract_stat_value(row, stat_field))
+                if numeric_value is None:
+                    continue
+                valued_rows.append((row, numeric_value))
+
+            if not valued_rows:
+                leader = None
+            else:
+                ranked_rows = sorted(
+                    valued_rows,
+                    key=lambda item: (
+                        -item[1] if direction == "max" else item[1],
+                        str(item[0].get("player_id") or ""),
+                    ),
+                )
+                if rank > len(ranked_rows):
+                    leader = None
+                else:
+                    best_row, best_value = ranked_rows[rank - 1]
+                    player_id = str(best_row.get("player_id") or "").strip()
+                    player = self._player_by_id(player_id) or {}
+                    team_id = str(player.get("team_id") or best_row.get("team_id") or "").strip() or None
+                    team = self._team_descriptor(team_id, fallback_teams=fallback_teams)
+                    leader = {
+                        "entity_type": "player",
+                        "player_id": player_id or None,
+                        "name": str(player.get("full_name") or "").strip() or player_id or "Unknown player",
+                        "team_id": team_id,
+                        "team_abbreviation": team.get("abbreviation"),
+                        "team_name": team.get("display_name"),
+                        "stat_field": stat_field,
+                        "stat_value": best_value,
+                        "rank": rank,
+                    }
+        else:
+            response = (
+                self.client.table("team_statistics")
+                .select("*")
+                .eq("game_id", normalized_event_id)
+                .execute()
+            )
+            rows = [row for row in (response.data or []) if isinstance(row, dict)]
+            if not rows and isinstance(parsed, dict) and isinstance(parsed.get("team_statistics"), list):
+                rows = [
+                    row
+                    for row in parsed["team_statistics"]
+                    if isinstance(row, dict) and str(row.get("game_id") or "") == normalized_event_id
+                ]
+
+            valued_rows: list[tuple[dict[str, Any], float]] = []
+            for row in rows:
+                numeric_value = to_numeric_stat_value(self._extract_stat_value(row, stat_field))
+                if numeric_value is None:
+                    continue
+                valued_rows.append((row, numeric_value))
+
+            if not valued_rows:
+                leader = None
+            else:
+                ranked_rows = sorted(
+                    valued_rows,
+                    key=lambda item: (
+                        -item[1] if direction == "max" else item[1],
+                        str(item[0].get("team_id") or ""),
+                    ),
+                )
+                if rank > len(ranked_rows):
+                    leader = None
+                else:
+                    best_row, best_value = ranked_rows[rank - 1]
+                    team_id = str(best_row.get("team_id") or "").strip() or None
+                    team = self._team_descriptor(team_id, fallback_teams=fallback_teams)
+                    leader = {
+                        "entity_type": "team",
+                        "team_id": team_id,
+                        "name": team.get("display_name") or team_id or "Unknown team",
+                        "team_abbreviation": team.get("abbreviation"),
+                        "team_name": team.get("display_name"),
+                        "stat_field": stat_field,
+                        "stat_value": best_value,
+                        "rank": rank,
+                    }
+
+        LOGGER.info(
+            "event_id=%s query=game_stat_leader answer_source=%s direction=%s leader_entity_type=%s rank=%s",
+            normalized_event_id,
+            source,
+            direction,
+            leader_entity_type,
+            rank,
+        )
+
+        return {
+            "event_id": normalized_event_id,
+            "game": {
+                **game,
+                "source": source,
+            },
+            "leader": leader,
+            "direction": direction,
+            "requested_rank": rank,
+            "available_count": len(valued_rows),
+            "stat": {
+                "requested": stat_name,
+                "field": stat_field,
+                "label": stat_label,
+            },
+            "sources": sorted({source}),
+        }
 
     def get_player_last_n_games_stat(
         self,
@@ -1205,118 +2051,19 @@ class DataService:
                 )
                 continue
 
-            load_info: Optional[dict[str, Any]] = None
-            stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-            value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
-            used_parsed_fallback = False
-
-            if stats_row is None or value is None:
-                load_info = self.ensure_game_ingested(
-                    event_id=event_id,
-                    required_player_id=player_id,
-                    require_team_stats=False,
-                )
-                sources.add(str(load_info.get("source") or "espn_summary"))
-                stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-                value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
-                if value is None:
-                    parsed_row = self._find_player_stat_in_parsed_rows(
-                        parsed=load_info.get("parsed"),
-                        player_id=player_id,
-                        event_id=event_id,
-                    )
-                    if parsed_row is not None:
-                        stats_row = parsed_row
-                        value = self._extract_stat_value(parsed_row, stat_field)
-                        used_parsed_fallback = True
-                LOGGER.debug(
-                    "last_n event_id=%s source=espn_fallback value=%s",
-                    event_id,
-                    value,
-                )
-            else:
-                sources.add("supabase")
-                LOGGER.debug(
-                    "last_n event_id=%s source=supabase value=%s",
-                    event_id,
-                    value,
-                )
-
-            if stats_row is None or value is None:
-                if isinstance(load_info, dict):
-                    LOGGER.warning(
-                        "event_id=%s query=last_n answer_source=none source=%s persistence_succeeded=%s persistence_error=%s",
-                        event_id,
-                        load_info.get("source"),
-                        bool(load_info.get("persistence_succeeded", True)),
-                        load_info.get("persistence_error"),
-                    )
-                continue
-
-            if load_info is None:
-                LOGGER.info("event_id=%s query=last_n answer_source=db_only", event_id)
-            else:
-                answer_source = "after_ingestion_memory_fallback" if used_parsed_fallback else "after_ingestion"
-                LOGGER.info(
-                    "event_id=%s query=last_n answer_source=%s source=%s ingested=%s game_existed=%s persistence_succeeded=%s",
-                    event_id,
-                    answer_source,
-                    load_info.get("source"),
-                    bool(load_info.get("ingested")),
-                    bool(load_info.get("game_existed")),
-                    bool(load_info.get("persistence_succeeded", True)),
-                )
-
-            game_row = self._get_game_row(event_id=event_id)
-            if game_row is None and isinstance(load_info, dict):
-                loaded_game = load_info.get("game") if isinstance(load_info, dict) else None
-                if isinstance(loaded_game, dict):
-                    game_row = loaded_game
-            fallback_teams = None
-            if isinstance(load_info, dict):
-                parsed = load_info.get("parsed")
-                if isinstance(parsed, dict):
-                    teams = parsed.get("teams")
-                    if isinstance(teams, list):
-                        fallback_teams = [row for row in teams if isinstance(row, dict)]
-
-            context = self._build_game_context(
-                game_row=game_row,
+            row, source = self._resolve_player_event_stat_row(
+                player_id=player_id,
                 team_id=team_id,
-                fallback_teams=fallback_teams,
+                event_id=event_id,
+                stat_field=stat_field,
+                now_local=now_local,
             )
-            opponent = context.get("opponent")
-            if not isinstance(opponent, str) or not opponent.strip() or opponent.strip().isdigit():
-                LOGGER.debug(
-                    "last_n skipping unresolved opponent event_id=%s opponent=%s",
-                    event_id,
-                    opponent,
-                )
+            sources.add(source or "supabase")
+            if row is None:
+                LOGGER.debug("last_n unresolved stat row for event_id=%s stat_field=%s", event_id, stat_field)
                 continue
 
-            context_local_dt = self._parse_datetime_to_local(
-                context.get("game_datetime_local") or context.get("date")
-            )
-            local_dt = context_local_dt or event_local_dt
-            if local_dt is None:
-                LOGGER.debug("last_n skipping malformed local date event_id=%s", event_id)
-                continue
-            if local_dt > now_local:
-                LOGGER.debug("last_n skipping local date in future event_id=%s", event_id)
-                continue
-
-            games.append(
-                {
-                    "game_id": event_id,
-                    "event_id": event_id,
-                    "date": local_dt.date().isoformat(),
-                    "game_datetime_local": local_dt.isoformat(),
-                    "opponent": opponent.strip(),
-                    "stat_value": value,
-                    "value": value,
-                    "status": context.get("status"),
-                }
-            )
+            games.append(row)
             if len(games) >= n:
                 break
 
@@ -1623,96 +2370,16 @@ class DataService:
 
         sources: set[str] = set()
         for event_id in event_ids:
-            load_info: Optional[dict[str, Any]] = None
-            stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-            value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
-            used_parsed_fallback = False
-            if stats_row is None or value is None:
-                load_info = self.ensure_game_ingested(event_id=event_id, required_player_id=player_id)
-                sources.add(str(load_info.get("source") or "espn_summary"))
-                stats_row = self._get_player_game_stats_row(player_id=player_id, event_id=event_id)
-                value = self._extract_stat_value(stats_row or {}, stat_field) if stats_row else None
-                if value is None:
-                    parsed_row = self._find_player_stat_in_parsed_rows(
-                        parsed=load_info.get("parsed"),
-                        player_id=player_id,
-                        event_id=event_id,
-                    )
-                    if parsed_row is not None:
-                        stats_row = parsed_row
-                        value = self._extract_stat_value(parsed_row, stat_field)
-                        used_parsed_fallback = True
-                LOGGER.debug(
-                    "by_date event_id=%s source=espn_fallback value=%s",
-                    event_id,
-                    value,
-                )
-            else:
-                sources.add("supabase")
-                LOGGER.debug(
-                    "by_date event_id=%s source=supabase value=%s",
-                    event_id,
-                    value,
-                )
-
-            if stats_row is None or value is None:
-                if isinstance(load_info, dict):
-                    LOGGER.warning(
-                        "event_id=%s query=by_date answer_source=none source=%s persistence_succeeded=%s persistence_error=%s",
-                        event_id,
-                        load_info.get("source"),
-                        bool(load_info.get("persistence_succeeded", True)),
-                        load_info.get("persistence_error"),
-                    )
-                continue
-
-            if load_info is None:
-                LOGGER.info("event_id=%s query=by_date answer_source=db_only", event_id)
-            else:
-                answer_source = "after_ingestion_memory_fallback" if used_parsed_fallback else "after_ingestion"
-                LOGGER.info(
-                    "event_id=%s query=by_date answer_source=%s source=%s ingested=%s game_existed=%s persistence_succeeded=%s",
-                    event_id,
-                    answer_source,
-                    load_info.get("source"),
-                    bool(load_info.get("ingested")),
-                    bool(load_info.get("game_existed")),
-                    bool(load_info.get("persistence_succeeded", True)),
-                )
-
-            game_row = self._get_game_row(event_id=event_id)
-            if game_row is None and isinstance(load_info, dict):
-                loaded_game = load_info.get("game") if isinstance(load_info, dict) else None
-                if isinstance(loaded_game, dict):
-                    game_row = loaded_game
-
-            fallback_teams = None
-            if isinstance(load_info, dict):
-                parsed = load_info.get("parsed")
-                if isinstance(parsed, dict):
-                    teams = parsed.get("teams")
-                    if isinstance(teams, list):
-                        fallback_teams = [row for row in teams if isinstance(row, dict)]
-
-            context = self._build_game_context(
-                game_row=game_row,
+            row, source = self._resolve_player_event_stat_row(
+                player_id=player_id,
                 team_id=team_id,
-                fallback_teams=fallback_teams,
+                event_id=event_id,
+                stat_field=stat_field,
+                now_local=now_local,
             )
-            opponent = context.get("opponent")
-            if not isinstance(opponent, str) or not opponent.strip() or opponent.strip().isdigit():
-                LOGGER.debug(
-                    "by_date skipping unresolved opponent event_id=%s opponent=%s",
-                    event_id,
-                    opponent,
-                )
-                continue
-
-            local_dt = self._parse_datetime_to_local(
-                context.get("game_datetime_local") or context.get("date")
-            )
-            if local_dt is None or local_dt > now_local:
-                LOGGER.debug("by_date skipping malformed/future date event_id=%s", event_id)
+            sources.add(source or "supabase")
+            if row is None:
+                LOGGER.debug("by_date unresolved stat row for event_id=%s stat_field=%s", event_id, stat_field)
                 continue
 
             return {
@@ -1728,16 +2395,7 @@ class DataService:
                     "label": stat_label,
                 },
                 "target_date": target_day.isoformat(),
-                "result": {
-                    "game_id": event_id,
-                    "event_id": event_id,
-                    "date": local_dt.date().isoformat(),
-                    "game_datetime_local": local_dt.isoformat(),
-                    "opponent": opponent.strip(),
-                    "stat_value": value,
-                    "value": value,
-                    "status": context.get("status"),
-                },
+                "result": row,
                 "sources": sorted(sources),
             }
 
@@ -1796,6 +2454,390 @@ class DataService:
                 "team_id": team_id,
                 "team_abbreviation": team_abbr,
             },
+            "stat": {
+                "requested": stat_name,
+                "field": stat_field,
+                "label": stat_label,
+            },
+            "event_id": normalized_event_id,
+            "result": row,
+            "sources": sorted(set(sources)),
+        }
+
+    def get_team_last_n_games_stat(
+        self,
+        team_query: str,
+        stat_name: str,
+        n: int,
+    ) -> dict[str, Any]:
+        if n <= 0:
+            raise ValueError("n must be > 0")
+
+        team = self.resolve_team(team_query)
+        team_id = str(team["id"])
+        team_abbr = str(team["abbreviation"])
+        now_local = self._current_local_time()
+        stat_field, stat_label = self._resolve_stat_field(stat_name)
+
+        recent_events = self._discover_recent_team_events(
+            team_abbr=team_abbr,
+            n=n,
+            now_local=now_local,
+            windows=[21, 30, 45],
+        )
+        event_ids = [str(item["event_id"]) for item in recent_events]
+        event_lookup = {str(item["event_id"]): item for item in recent_events}
+
+        games: list[dict[str, Any]] = []
+        sources: set[str] = set()
+        seen_event_ids: set[str] = set()
+
+        for event_id in event_ids:
+            if event_id in seen_event_ids:
+                continue
+            seen_event_ids.add(event_id)
+
+            event_meta = event_lookup.get(event_id) or {}
+            event_status = str(event_meta.get("status") or "")
+            if not is_final_status(event_status):
+                continue
+
+            event_local_dt = event_meta.get("event_datetime_local")
+            if not isinstance(event_local_dt, datetime):
+                continue
+            if event_local_dt.tzinfo is None:
+                event_local_dt = event_local_dt.replace(tzinfo=LOCAL_TZ)
+            event_local_dt = event_local_dt.astimezone(LOCAL_TZ)
+            if event_local_dt > now_local:
+                continue
+
+            row, source = self._resolve_team_event_stat_row(
+                team_id=team_id,
+                event_id=event_id,
+                stat_field=stat_field,
+                now_local=now_local,
+            )
+            sources.add(source or "supabase")
+            if row is None:
+                continue
+
+            games.append(row)
+            if len(games) >= n:
+                break
+
+        games.sort(
+            key=lambda row: self._parse_datetime_to_local(row.get("game_datetime_local"))
+            or datetime(1970, 1, 1, tzinfo=LOCAL_TZ),
+            reverse=True,
+        )
+
+        return {
+            "team": team,
+            "stat": {
+                "requested": stat_name,
+                "field": stat_field,
+                "label": stat_label,
+            },
+            "now_local": now_local.isoformat(),
+            "requested_games": n,
+            "returned_games": len(games[:n]),
+            "games": games[:n],
+            "sources": sorted(sources),
+        }
+
+    def get_team_game_stat_by_date(
+        self,
+        team_query: str,
+        stat_name: str,
+        target_date: date | datetime | str,
+    ) -> dict[str, Any]:
+        team = self.resolve_team(team_query)
+        team_id = str(team["id"])
+        team_abbr = str(team["abbreviation"])
+        stat_field, stat_label = self._resolve_stat_field(stat_name)
+        target_day = parse_target_date(target_date)
+        now_local = self._current_local_time()
+
+        event_ids = self._find_team_event_ids_for_date(
+            team_id=team_id,
+            team_abbr=team_abbr,
+            target_date=target_day,
+        )
+        if not event_ids:
+            return {
+                "team": team,
+                "stat": {
+                    "requested": stat_name,
+                    "field": stat_field,
+                    "label": stat_label,
+                },
+                "target_date": target_day.isoformat(),
+                "result": None,
+                "sources": ["supabase", "espn_scoreboard"],
+            }
+
+        sources: set[str] = set()
+        for event_id in event_ids:
+            row, source = self._resolve_team_event_stat_row(
+                team_id=team_id,
+                event_id=event_id,
+                stat_field=stat_field,
+                now_local=now_local,
+            )
+            sources.add(source or "supabase")
+            if row is None:
+                continue
+
+            return {
+                "team": team,
+                "stat": {
+                    "requested": stat_name,
+                    "field": stat_field,
+                    "label": stat_label,
+                },
+                "target_date": target_day.isoformat(),
+                "result": row,
+                "sources": sorted(sources),
+            }
+
+        return {
+            "team": team,
+            "stat": {
+                "requested": stat_name,
+                "field": stat_field,
+                "label": stat_label,
+            },
+            "target_date": target_day.isoformat(),
+            "result": None,
+            "sources": sorted(sources),
+        }
+
+    def get_team_stat_log_for_date_range(
+        self,
+        team_query: str,
+        stat_name: str,
+        start_date: date | datetime | str,
+        end_date: date | datetime | str,
+        before_now: bool = True,
+        discover_scoreboard: bool = True,
+    ) -> dict[str, Any]:
+        team = self.resolve_team(team_query)
+        team_id = str(team["id"])
+        team_abbr = str(team["abbreviation"])
+        stat_field, stat_label = self._resolve_stat_field(stat_name)
+        start_day = parse_target_date(start_date)
+        end_day = parse_target_date(end_date)
+        if end_day < start_day:
+            raise ValueError("end_date must be on or after start_date")
+
+        now_local = self._current_local_time()
+        range_start_local = datetime(
+            start_day.year,
+            start_day.month,
+            start_day.day,
+            0,
+            0,
+            0,
+            tzinfo=LOCAL_TZ,
+        )
+        range_end_local = datetime(
+            end_day.year,
+            end_day.month,
+            end_day.day,
+            23,
+            59,
+            59,
+            tzinfo=LOCAL_TZ,
+        )
+        if before_now:
+            range_end_local = min(range_end_local, now_local)
+
+        discovered_event_ids: list[str] = []
+        if discover_scoreboard:
+            team_events = find_team_events_in_date_range(
+                team_abbr=team_abbr,
+                start_date=start_day,
+                end_date=end_day,
+                settings=self.settings,
+                final_only=True,
+                now_local=now_local,
+            )
+            discovered_event_ids = [str(item["event_id"]) for item in team_events]
+
+        start_iso = start_day.isoformat()
+        end_iso = (end_day + timedelta(days=1)).isoformat()
+        columns = "id,date,status"
+        home_resp = (
+            self.client.table("games")
+            .select(columns)
+            .eq("home_team", team_id)
+            .gte("date", start_iso)
+            .lt("date", end_iso)
+            .order("date", desc=True)
+            .execute()
+        )
+        away_resp = (
+            self.client.table("games")
+            .select(columns)
+            .eq("away_team", team_id)
+            .gte("date", start_iso)
+            .lt("date", end_iso)
+            .order("date", desc=True)
+            .execute()
+        )
+
+        db_range_ids: list[str] = []
+        for row in (home_resp.data or []) + (away_resp.data or []):
+            if not isinstance(row, dict):
+                continue
+            event_id = str(row.get("id") or "").strip()
+            if not event_id:
+                continue
+            local_dt = self._parse_datetime_to_local(row.get("date"))
+            if local_dt is None:
+                continue
+            if local_dt.tzinfo is None:
+                local_dt = local_dt.replace(tzinfo=LOCAL_TZ)
+            local_dt = local_dt.astimezone(LOCAL_TZ)
+            if local_dt < range_start_local or local_dt > range_end_local:
+                continue
+            if not is_final_status(row.get("status")):
+                continue
+            db_range_ids.append(event_id)
+
+        if not discover_scoreboard and not db_range_ids:
+            recent_seed_events = self._discover_recent_team_events(
+                team_abbr=team_abbr,
+                n=120,
+                now_local=now_local,
+                windows=[21, 30, 45],
+            )
+            for event in recent_seed_events:
+                event_id = str(event.get("event_id") or "").strip()
+                if not event_id:
+                    continue
+                event_local = event.get("event_datetime_local")
+                if not isinstance(event_local, datetime):
+                    continue
+                if event_local.tzinfo is None:
+                    event_local = event_local.replace(tzinfo=LOCAL_TZ)
+                event_local = event_local.astimezone(LOCAL_TZ)
+                if event_local < range_start_local or event_local > range_end_local:
+                    continue
+                discovered_event_ids.append(event_id)
+
+        candidate_event_ids = list(dict.fromkeys(discovered_event_ids + db_range_ids))
+        games: list[dict[str, Any]] = []
+        sources: set[str] = set()
+        seen_ids: set[str] = set()
+        unresolved_event_ids: list[str] = []
+
+        for event_id in candidate_event_ids:
+            if event_id in seen_ids:
+                continue
+            seen_ids.add(event_id)
+            row, source = self._resolve_team_event_stat_row(
+                team_id=team_id,
+                event_id=event_id,
+                stat_field=stat_field,
+                now_local=now_local,
+                range_start_local=range_start_local,
+                range_end_local=range_end_local,
+            )
+            sources.add(source or "supabase")
+            if row is None:
+                unresolved_event_ids.append(event_id)
+                continue
+            games.append(row)
+
+        games.sort(
+            key=lambda row: self._parse_datetime_to_local(row.get("game_datetime_local"))
+            or datetime(1970, 1, 1, tzinfo=LOCAL_TZ),
+            reverse=True,
+        )
+
+        return {
+            "team": team,
+            "stat": {
+                "requested": stat_name,
+                "field": stat_field,
+                "label": stat_label,
+            },
+            "scope": {
+                "type": "date_range",
+                "start_date": start_day.isoformat(),
+                "end_date": end_day.isoformat(),
+                "before_now": before_now,
+            },
+            "returned_games": len(games),
+            "games": games,
+            "sources": sorted(sources),
+            "event_ids": {
+                "discovered": list(dict.fromkeys(discovered_event_ids)),
+                "db_range": list(dict.fromkeys(db_range_ids)),
+                "candidates": list(dict.fromkeys(candidate_event_ids)),
+                "unresolved": unresolved_event_ids,
+            },
+        }
+
+    def get_team_season_stat_log(
+        self,
+        team_query: str,
+        stat_name: str,
+        season: str = "current",
+    ) -> dict[str, Any]:
+        now_local = self._current_local_time()
+        season_text = str(season or "current").strip().lower()
+
+        if season_text == "current":
+            season_start_local, season_end_local, season_label = self._current_season_window(now_local)
+        else:
+            match = re.fullmatch(r"(\d{4})(?:-(\d{2}|\d{4}))?", season_text)
+            if not match:
+                raise ValueError("season must be 'current' or like '2025-26'")
+            start_year = int(match.group(1))
+            season_start_local = datetime(start_year, 10, 1, 0, 0, 0, tzinfo=LOCAL_TZ)
+            season_end_local = datetime(start_year + 1, 7, 1, 0, 0, 0, tzinfo=LOCAL_TZ) - timedelta(seconds=1)
+            season_end_local = min(season_end_local, now_local)
+            season_label = f"{start_year}-{str(start_year + 1)[-2:]}"
+
+        result = self.get_team_stat_log_for_date_range(
+            team_query=team_query,
+            stat_name=stat_name,
+            start_date=season_start_local.date().isoformat(),
+            end_date=season_end_local.date().isoformat(),
+            before_now=True,
+            discover_scoreboard=True,
+        )
+        return result | {
+            "season": season_label,
+            "scope": {"type": "season", "season": season_label},
+        }
+
+    def get_team_game_stat_by_event_id(
+        self,
+        team_query: str,
+        stat_name: str,
+        event_id: str,
+    ) -> dict[str, Any]:
+        team = self.resolve_team(team_query)
+        team_id = str(team["id"])
+        normalized_event_id = str(event_id).strip()
+        if not normalized_event_id:
+            raise ValueError("event_id is required")
+
+        stat_field, stat_label = self._resolve_stat_field(stat_name)
+        now_local = self._current_local_time()
+        row, source = self._resolve_team_event_stat_row(
+            team_id=team_id,
+            event_id=normalized_event_id,
+            stat_field=stat_field,
+            now_local=now_local,
+        )
+        sources = [source] if source else []
+
+        return {
+            "team": team,
             "stat": {
                 "requested": stat_name,
                 "field": stat_field,

@@ -2,8 +2,16 @@ import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import type { ChatMessage } from '@/lib/chat/types'
 
 const execFileAsync = promisify(execFile)
+
+const TEAM_HINT_PATTERN =
+  /\b(?:atl|hawks|bos|celtics|celts|bkn|nets|cha|hornets|chi|bulls|cle|cavs|cavaliers|dal|mavs|mavericks|den|nuggets|det|pistons|gsw|warriors|dubs|hou|rockets|ind|pacers|lac|clippers|clips|lal|lakers|mem|grizzlies|grizz|mil|bucks|min|timberwolves|twolves|t-wolves|nop|pelicans|pels|nyk|knicks|okc|thunder|phi|sixers|76ers|phx|suns|por|blazers|trail blazers|trailblazers|sac|kings|sas|spurs|tor|raptors|uta|jazz|was|wizards)\b/i
+const TEAM_QUERY_PATTERN =
+  /\b(?:who|what|when|where|how|did|do|does|won|win|score|scored|play|played|game|games|last|recent|today|yesterday|tonight|stats?|points?|assists?|rebounds?|vs|versus|against)\b/i
+const FOLLOW_UP_NBA_PATTERN =
+  /\b(?:him|them|that game|that one|that team|that player|what about him|what about them|what about that|how about him|how about them|how about that)\b/i
 
 type CliPayload = {
   matched?: boolean
@@ -24,21 +32,16 @@ function toBool(value: string | undefined, defaultValue: boolean): boolean {
   return ['1', 'true', 'yes', 'on'].includes(text)
 }
 
-function shouldTryNbaTools(query: string): boolean {
-  const text = query.trim()
-  if (!text) {
+function latestUserMessage(messages: ChatMessage[]): ChatMessage | undefined {
+  return [...messages].reverse().find((message) => message.role === 'user')
+}
+
+function hasNbaKeyword(text: string): boolean {
+  const lower = text.trim().toLowerCase()
+  if (!lower) {
     return false
   }
 
-  const mode = (process.env.LEVISION_NBA_TOOLS_MATCH_MODE || 'hint')
-    .trim()
-    .toLowerCase()
-
-  if (mode === 'always') {
-    return true
-  }
-
-  const lower = text.toLowerCase()
   const keywords = [
     'nba',
     'points',
@@ -56,10 +59,51 @@ function shouldTryNbaTools(query: string): boolean {
     'recent ',
     'yesterday',
     'today',
+    'tonight',
     'event ',
     'game id',
   ]
   return keywords.some((keyword) => lower.includes(keyword))
+}
+
+function isTeamOnlyPrompt(text: string): boolean {
+  const trimmed = text.trim()
+  return Boolean(trimmed) && TEAM_HINT_PATTERN.test(trimmed) && trimmed.split(/\s+/).length <= 3
+}
+
+function shouldTryNbaTools(messages: ChatMessage[]): boolean {
+  const latestMessage = latestUserMessage(messages)
+  const text = latestMessage?.content?.trim() ?? ''
+  if (!text) {
+    return false
+  }
+
+  const mode = (process.env.LEVISION_NBA_TOOLS_MATCH_MODE || 'hint')
+    .trim()
+    .toLowerCase()
+
+  if (mode === 'always') {
+    return true
+  }
+
+  if (hasNbaKeyword(text)) {
+    return true
+  }
+
+  if (TEAM_HINT_PATTERN.test(text) && (TEAM_QUERY_PATTERN.test(text) || isTeamOnlyPrompt(text))) {
+    return true
+  }
+
+  if (!FOLLOW_UP_NBA_PATTERN.test(text)) {
+    return false
+  }
+
+  const priorContext = messages
+    .slice(-8, -1)
+    .map((message) => message.content)
+    .join(' ')
+
+  return hasNbaKeyword(priorContext) || TEAM_HINT_PATTERN.test(priorContext)
 }
 
 function resolveRepoRoot(): string {
@@ -95,12 +139,16 @@ function parseCliPayload(stdout: string): CliPayload {
   }
 }
 
-export async function runNbaToolQuery(query: string): Promise<NbaToolOutcome> {
+export async function runNbaToolQuery(
+  messages: ChatMessage[]
+): Promise<NbaToolOutcome> {
   if (!toBool(process.env.LEVISION_ENABLE_NBA_TOOLS, true)) {
     return { kind: 'no_match' }
   }
 
-  if (!query.trim() || !shouldTryNbaTools(query)) {
+  const latestMessage = latestUserMessage(messages)
+  const query = latestMessage?.content?.trim() ?? ''
+  if (!query || !shouldTryNbaTools(messages)) {
     return { kind: 'no_match' }
   }
 
@@ -112,11 +160,20 @@ export async function runNbaToolQuery(query: string): Promise<NbaToolOutcome> {
 
   const pythonBin = process.env.LEVISION_PYTHON_BIN || 'python3'
   const timeoutMs = Number(process.env.LEVISION_NBA_TOOL_TIMEOUT_MS || '300000')
+  const recentHistory = messages.slice(-12)
 
   try {
     const { stdout } = await execFileAsync(
       pythonBin,
-      ['-m', 'nba_pipeline.chat_tools_cli', '--query', query, '--json'],
+      [
+        '-m',
+        'nba_pipeline.chat_tools_cli',
+        '--query',
+        query,
+        '--history-json',
+        JSON.stringify(recentHistory),
+        '--json',
+      ],
       {
         cwd: repoRoot,
         timeout: timeoutMs,

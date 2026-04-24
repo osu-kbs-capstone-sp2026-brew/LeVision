@@ -53,7 +53,7 @@ export async function generateChatReply(
     .find((message) => message.role === 'user')
 
   if (latestUserMessage?.content) {
-    const toolOutcome = await runNbaToolQuery(latestUserMessage.content)
+    const toolOutcome = await runNbaToolQuery(messages)
 
     if (toolOutcome.kind === 'answer') {
       return {
@@ -79,7 +79,7 @@ export async function generateChatReply(
   const endpoint = process.env.LEVISION_CHAT_API_URL
   const customApiKey = process.env.LEVISION_CHAT_API_KEY
   const openAiApiKey = process.env.OPENAI_API_KEY ?? customApiKey
-  const openAiModel = process.env.LEVISION_OPENAI_MODEL ?? 'gpt-5-nano'
+  const openAiModel = process.env.LEVISION_OPENAI_MODEL ?? 'gpt-5.4'
 
   if (endpoint) {
     const response = await fetch(endpoint, {
