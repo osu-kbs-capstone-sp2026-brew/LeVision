@@ -780,8 +780,8 @@ def build_game_state(timeline: list[dict[str, Any]], pbp_data: dict) -> dict[str
 # ---------------------------------------------------------------------------
 
 
-def upload_results(clip_id: str, timeline: list[dict], game_state: dict) -> str:
-    """Upload processed_game_state.json to R2 and return the R2 key."""
+def upload_results(clip_id: str, timeline: list[dict], game_state: dict, pbp_data: dict) -> str:
+    """Upload game_state.json, player_boxscore.json, and clock_timeline.json to R2."""
     s3 = _r2_client()
     results_key = f"results/{clip_id}/game_state.json"
 
@@ -792,15 +792,22 @@ def upload_results(clip_id: str, timeline: list[dict], game_state: dict) -> str:
         ContentType="application/json",
     )
 
-    timeline_key = f"results/{clip_id}/clock_timeline.json"
+    # player_boxscore.json is fetched by the Next.js API for player name resolution
     s3.put_object(
         Bucket=R2_BUCKET,
-        Key=timeline_key,
+        Key=f"results/{clip_id}/player_boxscore.json",
+        Body=json.dumps(pbp_data.get("player_boxscore", []), indent=2).encode(),
+        ContentType="application/json",
+    )
+
+    s3.put_object(
+        Bucket=R2_BUCKET,
+        Key=f"results/{clip_id}/clock_timeline.json",
         Body=json.dumps(timeline, indent=2).encode(),
         ContentType="application/json",
     )
 
-    print(f"Uploaded results to R2: {results_key}, {timeline_key}")
+    print(f"Uploaded results to R2 under results/{clip_id}/")
     return results_key
 
 
@@ -850,7 +857,7 @@ def process_clip(
 
         # Stage 5: upload results
         _post_webhook(webhook_url, secret, {"event": "stage_update", "clip_id": clip_id, "stage": "uploading_results"})
-        results_key = upload_results(clip_id, timeline, game_state)
+        results_key = upload_results(clip_id, timeline, game_state, pbp_data)
 
         # Done
         _post_webhook(webhook_url, secret, {

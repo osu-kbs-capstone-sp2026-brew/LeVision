@@ -15,6 +15,7 @@ type FootageRow = {
   game_season: string | null
   vision_status: string
   vision_stage: string | null
+  vision_results_key: string | null
   created_at: string
 }
 
@@ -80,9 +81,10 @@ function rowToClip(row: FootageRow): FootageClip {
     title:        row.filename,
     createdAt:    row.created_at,
     playbackUrl:  row.r2_url,
-    visionStatus: row.vision_status,
-    visionStage:  row.vision_stage,
-    homeTeamId:   row.home_team_id ?? undefined,
+    visionStatus:     row.vision_status,
+    visionStage:      row.vision_stage,
+    visionResultsKey: row.vision_results_key,
+    homeTeamId:       row.home_team_id ?? undefined,
     awayTeamId:   row.away_team_id ?? undefined,
     gameDate:     row.game_date,
   }

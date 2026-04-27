@@ -8,6 +8,7 @@ export type FootageClip = {
   game?: Game
   visionStatus?: string
   visionStage?: string | null
+  visionResultsKey?: string | null
   homeTeamId?: string
   awayTeamId?: string
   gameDate?: string | null
@@ -24,6 +25,7 @@ type FootageRow = {
   game_season: string | null
   vision_status: string
   vision_stage: string | null
+  vision_results_key: string | null
   created_at: string
 }
 
@@ -42,6 +44,7 @@ export async function fetchFootageLibraryClips(): Promise<FootageClip[]> {
       playbackUrl: row.r2_url,
       visionStatus: row.vision_status,
       visionStage: row.vision_stage,
+      visionResultsKey: row.vision_results_key,
       homeTeamId: row.home_team_id ?? undefined,
       awayTeamId: row.away_team_id ?? undefined,
       gameDate: row.game_date,

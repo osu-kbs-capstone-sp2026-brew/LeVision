@@ -4,48 +4,45 @@ import { useEffect, useMemo, useState } from 'react'
 import type { LiveGameState, LiveGameTimeline } from '@/lib/types'
 
 type UseLiveGameStateOptions = {
+  clipId?: string | null
   enabled?: boolean
   videoSecond?: number
 }
 
-/**
- * Loads the processed-game-state timeline once and returns the snapshot that
- * matches the current video playback second. Video second 0 maps to the first
- * snapshot (key "1"), since processed_game_state.json keys are 1-indexed.
- */
 export function useLiveGameState({
+  clipId,
   enabled = true,
   videoSecond = 0,
 }: UseLiveGameStateOptions = {}) {
   const [timeline, setTimeline] = useState<LiveGameTimeline | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Reset when clip changes
+  const [trackedClipId, setTrackedClipId] = useState<string | null | undefined>(clipId)
+  if (clipId !== trackedClipId) {
+    setTrackedClipId(clipId)
+    setTimeline(null)
+    setError(null)
+  }
+
   useEffect(() => {
-    if (!enabled || timeline || error) return
+    if (!enabled || !clipId || timeline || error) return
     let cancelled = false
 
-    fetch('/api/live-game-state')
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Unable to load live state: ${response.status}`)
-        }
-        return (await response.json()) as LiveGameTimeline
+    fetch(`/api/live-game-state?clipId=${encodeURIComponent(clipId)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Unable to load live state: ${res.status}`)
+        return (await res.json()) as LiveGameTimeline
       })
-      .then((payload) => {
-        if (!cancelled) setTimeline(payload)
-      })
+      .then((payload) => { if (!cancelled) setTimeline(payload) })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Could not load live state')
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load live state')
       })
 
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, timeline, error])
+    return () => { cancelled = true }
+  }, [enabled, clipId, timeline, error])
 
-  const loading = enabled && !timeline && !error
+  const loading = enabled && Boolean(clipId) && !timeline && !error
 
   const liveState = useMemo<LiveGameState | null>(() => {
     if (!timeline) return null
