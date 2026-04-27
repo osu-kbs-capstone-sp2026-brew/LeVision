@@ -100,7 +100,10 @@ function normalizeTeam(
 
   const playerStats = Object.keys(rawStats)
     .map((pid) => normalizePlayer(pid, rawStats[pid], onCourtSet, lookup))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      if (a.onCourt !== b.onCourt) return a.onCourt ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
 
   const teamFromOnCourt = onCourt[0] ? lookup.get(Number(onCourt[0]))?.teamName : undefined
   const teamFromRoster = Object.keys(rawStats)
