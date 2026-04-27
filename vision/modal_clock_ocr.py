@@ -54,9 +54,7 @@ image = (
             "fastapi[standard]",
         ]
     )
-    .add_local_file("data/nba/pbp_raw.json", "/nba_data/pbp_raw.json")
-    .add_local_file("data/nba/player_boxscore.json", "/nba_data/player_boxscore.json")
-    .add_local_file("data/nba/game_meta.json", "/nba_data/game_meta.json")
+
 )
 
 app = modal.App("basketball-clock-ocr", image=image)
