@@ -95,7 +95,16 @@ export type LiveGameState = {
   period: number
   homeTeam: LiveTeamState
   awayTeam: LiveTeamState
+  playerPossession?: string | null
 }
+
+export type PossessionSegment = {
+  start: number
+  end: number
+  pid: string
+}
+
+export type PlayerSegmentIndex = Record<string, PossessionSegment[]>
 
 export type LiveGameTimeline = {
   minSecond: number

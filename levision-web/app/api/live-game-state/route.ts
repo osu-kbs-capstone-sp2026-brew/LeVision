@@ -9,6 +9,7 @@ import type {
 } from '@/lib/types'
 
 const ROOT_DIR = process.cwd()
+const POSSESSION_STATE_PATH = path.resolve(ROOT_DIR, '../vision/possession_game_state.json')
 const STATE_PATH = path.resolve(ROOT_DIR, '../vision/processed_game_state.json')
 const PLAYER_BOX_PATH = path.resolve(ROOT_DIR, '../vision/data/nba/player_boxscore.json')
 
@@ -33,6 +34,7 @@ type RawSnapshot = {
   period?: number
   home_team?: RawTeamState
   visitor_team?: RawTeamState
+  player_possession?: string | number | null
 }
 
 function buildPlayerLookup(entries: Array<Record<string, unknown>>): PlayerLookup {
@@ -113,22 +115,35 @@ function buildSnapshots(
   const snapshots: Record<string, LiveGameState> = {}
   for (const key of Object.keys(state)) {
     const entry = state[key]
+    const rawPossession = entry.player_possession
+    const playerPossession =
+      rawPossession == null ? null : String(rawPossession)
+
     const snapshot: LiveGameState = {
       videoSecond: Number(key),
       clock: entry.game_clock ?? '00:00',
       period: Number(entry.period ?? 0),
       homeTeam: normalizeTeam('home', entry.home_team, lookup),
       awayTeam: normalizeTeam('away', entry.visitor_team, lookup),
+      playerPossession,
     }
     snapshots[key] = snapshot
   }
   return snapshots
 }
 
+async function readStateFile(): Promise<string> {
+  try {
+    return await readFile(POSSESSION_STATE_PATH, 'utf8')
+  } catch {
+    return readFile(STATE_PATH, 'utf8')
+  }
+}
+
 export async function GET() {
   try {
     const [stateRaw, playerBoxRaw] = await Promise.all([
-      readFile(STATE_PATH, 'utf8'),
+      readStateFile(),
       readFile(PLAYER_BOX_PATH, 'utf8'),
     ])
 

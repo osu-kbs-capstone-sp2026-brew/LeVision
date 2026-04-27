@@ -23,6 +23,8 @@ type Props = {
   liveTeam?: LiveTeamState
   liveClock?: string
   livePeriod?: number
+  /** personId string of the player currently holding the ball, or null. */
+  possessingPlayerId?: string | null
 }
 
 function formatQuarter(period?: number): string {
@@ -37,6 +39,7 @@ export default function TeamStatsPanel({
   liveTeam,
   liveClock,
   livePeriod,
+  possessingPlayerId = null,
 }: Props) {
   const isHome = team === 'home'
 
@@ -167,11 +170,14 @@ export default function TeamStatsPanel({
           <div className="space-y-3">
             {players.map((player, index) => {
               const isOnCourt = Boolean(player.onCourt)
-              const cardClasses = isOnCourt
-                ? 'rounded-[18px] border border-brand/40 bg-brand/[0.08] px-4 py-3 shadow-[0_0_0_1px_rgba(200,136,58,0.15)]'
-                : showLiveHeader
-                  ? 'rounded-[18px] border border-white/6 bg-white/[0.02] px-4 py-3 opacity-70'
-                  : 'rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-3'
+              const hasBall = possessingPlayerId !== null && player.liveId === possessingPlayerId
+              const cardClasses = hasBall
+                ? 'rounded-[18px] border border-brand/70 bg-brand/[0.13] px-4 py-3 shadow-[0_0_12px_rgba(200,136,58,0.25)]'
+                : isOnCourt
+                  ? 'rounded-[18px] border border-brand/40 bg-brand/[0.08] px-4 py-3 shadow-[0_0_0_1px_rgba(200,136,58,0.15)]'
+                  : showLiveHeader
+                    ? 'rounded-[18px] border border-white/6 bg-white/[0.02] px-4 py-3 opacity-70'
+                    : 'rounded-[18px] border border-white/8 bg-white/[0.04] px-4 py-3'
 
               return (
                 <div key={player.liveId ?? index} className={cardClasses}>
@@ -196,12 +202,23 @@ export default function TeamStatsPanel({
 
                     {/* Player Name */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-display text-offwhite text-sm tracking-wide truncate">
-                        {formatPlayerName(player.name)}
-                      </h4>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="font-display text-offwhite text-sm tracking-wide truncate">
+                          {formatPlayerName(player.name)}
+                        </h4>
+                        {hasBall && (
+                          <span
+                            title="In possession"
+                            className="flex-shrink-0 text-[0.6rem] leading-none"
+                            aria-label="In possession"
+                          >
+                            🏀
+                          </span>
+                        )}
+                      </div>
                       {showLiveHeader && (
                         <p className="mt-0.5 text-[0.52rem] uppercase tracking-[0.18em] text-muted">
-                          {isOnCourt ? 'On Court' : 'Bench'}
+                          {hasBall ? 'In Possession' : isOnCourt ? 'On Court' : 'Bench'}
                         </p>
                       )}
                     </div>
