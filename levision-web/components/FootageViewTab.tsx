@@ -8,17 +8,8 @@ import { useLiveGameState } from '@/hooks/useLiveGameState'
 import type { FootageClip } from '@/lib/footage-library'
 import type { LivePlay } from '@/lib/types'
 
-const PAST_GAME_ID_PREFIX = 'past-game-'
-const LAKERS_WARRIORS_CHRISTMAS_PATTERN = /lakers[\s_-]*warriors[\s_-]*christmas/i
-
-function isPastGameClip(clip: FootageClip | null): boolean {
-  return clip != null && clip.id.startsWith(PAST_GAME_ID_PREFIX)
-}
-
-function isLakersWarriorsChristmasClip(clip: FootageClip | null): boolean {
-  if (!clip) return false
-  const haystack = `${clip.title ?? ''} ${clip.playbackUrl ?? ''} ${clip.id ?? ''}`
-  return LAKERS_WARRIORS_CHRISTMAS_PATTERN.test(haystack)
+function hasLiveStats(clip: FootageClip | null): boolean {
+  return clip != null && clip.visionStatus === 'completed' && Boolean(clip.visionResultsKey)
 }
 
 function formatQuarter(period?: number): string {
@@ -125,26 +116,25 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
     ? mergedClips.find((c) => c.id === reviewClip.id) ?? mergedClips[0] ?? null
     : mergedClips[0] ?? null
 
-  const isChristmasClip = isLakersWarriorsChristmasClip(active)
+  const liveEnabled = hasLiveStats(active)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [videoSecond, setVideoSecond] = useState(0)
   const [trackedClipId, setTrackedClipId] = useState<string | null>(active?.id ?? null)
 
-  // Reset playback tracking when the active clip changes. Setting state during
-  // render (instead of in an effect) avoids a cascading render pass.
   if ((active?.id ?? null) !== trackedClipId) {
     setTrackedClipId(active?.id ?? null)
     setVideoSecond(0)
   }
 
   const { liveState, timeline, loading: liveLoading, error: liveError } = useLiveGameState({
-    enabled: isChristmasClip,
+    clipId: active?.id,
+    enabled: liveEnabled,
     videoSecond,
   })
 
   useEffect(() => {
-    const hideFloating = false // Always show floating chat now
+    const hideFloating = false
     setFloatingHidden(hideFloating)
 
     return () => setFloatingHidden(false)
@@ -152,7 +142,7 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
 
   const quarterLabel = formatQuarter(liveState?.period)
   const clockLabel = liveState?.clock ?? '--:--'
-  const fanPlays = timeline?.plays ?? []
+  const fanPlays = useMemo(() => timeline?.plays ?? [], [timeline])
   const activePlay = useMemo(
     () => findActivePlay(fanPlays, liveState?.period, liveState?.clock),
     [fanPlays, liveState?.period, liveState?.clock],
@@ -191,9 +181,9 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
             <TeamStatsPanel
               team="away"
               game={active?.game}
-              liveTeam={isChristmasClip ? liveState?.awayTeam : undefined}
-              liveClock={isChristmasClip ? liveState?.clock : undefined}
-              livePeriod={isChristmasClip ? liveState?.period : undefined}
+              liveTeam={liveEnabled ? liveState?.awayTeam : undefined}
+              liveClock={liveEnabled ? liveState?.clock : undefined}
+              livePeriod={liveEnabled ? liveState?.period : undefined}
             />
           </div>
         )}
@@ -216,11 +206,11 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
                   className="w-full h-full object-contain"
                   src={active.playbackUrl}
                   onTimeUpdate={(event) => {
-                    if (!isChristmasClip) return
+                    if (!liveEnabled) return
                     setVideoSecond(event.currentTarget.currentTime)
                   }}
                   onSeeked={(event) => {
-                    if (!isChristmasClip) return
+                    if (!liveEnabled) return
                     setVideoSecond(event.currentTarget.currentTime)
                   }}
                 >
@@ -242,7 +232,7 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
                 </div>
               )}
 
-              {isChristmasClip && liveState && (
+              {liveEnabled && liveState && (
                 <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-sm border border-brand/40 bg-black/70 px-2.5 py-1.5 backdrop-blur-md">
                   <span className="inline-flex items-center gap-1.5 text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-red-300">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
@@ -258,21 +248,33 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
               <div className="px-4 py-3 border-t border-[rgba(200,136,58,0.1)]">
                 <h3 className="font-display text-offwhite text-lg tracking-wide">{active.title}</h3>
                 <p className="text-[0.68rem] text-muted/55 font-light mt-1 tracking-wide uppercase">
-                  {isChristmasClip
+                  {liveEnabled
                     ? `Live stats · OCR-aligned · ${quarterLabel || '--'} ${clockLabel}`
-                    : isPastGameClip(active)
-                      ? 'Opened from Past Games'
-                      : 'Playback source: library pipeline (not upload ingest)'}
+                    : 'Playback from your footage library'}
                 </p>
-                {isChristmasClip && liveError && (
+                {liveEnabled && liveError && (
                   <p className="mt-2 text-[0.66rem] text-red-300/80 font-light">
                     Live stats unavailable: {liveError}
                   </p>
                 )}
-                {isChristmasClip && liveLoading && !liveError && (
+                {liveEnabled && liveLoading && !liveError && (
                   <p className="mt-2 text-[0.66rem] text-muted/60 font-light">
                     Loading live stats…
                   </p>
+                )}
+                {liveEnabled && liveState && liveState.recentEvents.length > 0 && !isFan && (
+                  <div className="mt-3 flex flex-col gap-1">
+                    {liveState.recentEvents.slice().reverse().map((evt, i) => (
+                      <p
+                        key={i}
+                        className={`text-[0.64rem] font-light tracking-wide truncate transition-opacity duration-300 ${
+                          i === 0 ? 'text-offwhite' : 'text-muted/50'
+                        }`}
+                      >
+                        {evt}
+                      </p>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -324,7 +326,7 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
                 })
               ) : (
                 <p className="px-4 py-4 text-[0.72rem] text-muted/60 font-light">
-                  Play-by-play unavailable.
+                  Play-by-play unavailable for this clip.
                 </p>
               )}
             </div>
@@ -334,9 +336,9 @@ export default function FootageViewTab({ reviewClip = null }: Props) {
             <TeamStatsPanel
               team="home"
               game={active?.game}
-              liveTeam={isChristmasClip ? liveState?.homeTeam : undefined}
-              liveClock={isChristmasClip ? liveState?.clock : undefined}
-              livePeriod={isChristmasClip ? liveState?.period : undefined}
+              liveTeam={liveEnabled ? liveState?.homeTeam : undefined}
+              liveClock={liveEnabled ? liveState?.clock : undefined}
+              livePeriod={liveEnabled ? liveState?.period : undefined}
             />
           </div>
         )}

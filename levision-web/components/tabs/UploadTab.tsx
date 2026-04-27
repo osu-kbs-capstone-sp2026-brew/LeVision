@@ -438,14 +438,30 @@ export default function UploadTab() {
 
     const results = await Promise.all(
       queued.map(async (item) => {
-        const formData = new FormData()
-        formData.append('file', item.file)
         try {
-          // Step 1: upload file to R2 + create footage row
-          const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
-          const uploadPayload = (await uploadRes.json()) as { key?: string; url?: string; clipId?: string; error?: string }
+          // Step 1: get presigned URL + create footage row
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: item.file.name,
+              contentType: item.file.type || 'video/mp4',
+              fileSize: item.file.size,
+            }),
+          })
+          const uploadPayload = (await uploadRes.json()) as { presignedUrl?: string; key?: string; url?: string; clipId?: string; error?: string }
           if (!uploadRes.ok) {
             return { id: item.id, status: 'failed' as UploadStatus, message: uploadPayload.error ?? 'Upload failed. Blame the refs.' }
+          }
+
+          // Step 2: PUT file directly to R2 via presigned URL (bypasses Vercel)
+          const r2Res = await fetch(uploadPayload.presignedUrl!, {
+            method: 'PUT',
+            headers: { 'Content-Type': item.file.type || 'video/mp4' },
+            body: item.file,
+          })
+          if (!r2Res.ok) {
+            return { id: item.id, status: 'failed' as UploadStatus, message: 'Upload to storage failed.' }
           }
 
           const clipId = uploadPayload.clipId!
