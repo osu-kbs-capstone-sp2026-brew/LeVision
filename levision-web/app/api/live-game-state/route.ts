@@ -1,8 +1,9 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { GetObjectCommand, NoSuchKey, S3Client } from '@aws-sdk/client-s3'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type {
   LiveGameState,
+  LivePlay,
   LiveGameTimeline,
   LivePlayerState,
   LiveTeamState,
@@ -28,6 +29,18 @@ async function fetchR2Json(r2: S3Client, key: string): Promise<unknown> {
   return JSON.parse(body)
 }
 
+async function fetchOptionalR2Json<T>(r2: S3Client, key: string): Promise<T | null> {
+  try {
+    return (await fetchR2Json(r2, key)) as T
+  } catch (error) {
+    if (error instanceof NoSuchKey) return null
+    if (error instanceof Error && /NoSuchKey|The specified key does not exist/i.test(error.message)) {
+      return null
+    }
+    throw error
+  }
+}
+
 type PlayerLookupEntry = { name: string; teamName: string }
 type PlayerLookup = Map<number, PlayerLookupEntry>
 
@@ -50,6 +63,18 @@ type RawSnapshot = {
   home_team?: RawTeamState
   visitor_team?: RawTeamState
   recent_events?: string[]
+}
+
+type RawPlay = {
+  actionNumber?: number
+  description?: string
+  period?: number
+  clock?: string
+  scoreHome?: string
+  scoreAway?: string
+  teamTricode?: string
+  videoAvailable?: number
+  actionId?: number
 }
 
 function buildPlayerLookup(entries: Array<Record<string, unknown>>): PlayerLookup {
@@ -108,7 +133,7 @@ function normalizeTeam(
   const teamFromOnCourt = onCourt[0] ? lookup.get(Number(onCourt[0]))?.teamName : undefined
   const teamFromRoster = Object.keys(rawStats)
     .map((pid) => lookup.get(Number(pid))?.teamName)
-    .find((v): v is string => Boolean(v))
+    .find((value): value is string => Boolean(value))
 
   return {
     teamName: teamFromOnCourt ?? teamFromRoster ?? (side === 'home' ? 'Home Team' : 'Away Team'),
@@ -136,6 +161,69 @@ function buildSnapshots(
   return snapshots
 }
 
+function formatPlayClock(clock: string | undefined): string {
+  if (!clock) return '--:--'
+  const match = clock.match(/PT(?:(\d+)M)?([\d.]+)S/i)
+  if (!match) return clock
+  const minutes = Number(match[1] ?? 0)
+  const seconds = Math.floor(Number(match[2] ?? 0))
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function buildPlays(rawPlays: RawPlay[]): LivePlay[] {
+  return rawPlays
+    .filter((play) => typeof play.description === 'string' && typeof play.period === 'number')
+    .map((play, index) => ({
+      id: String(play.actionId ?? play.actionNumber ?? index),
+      actionNumber: Number(play.actionNumber ?? index),
+      description: play.description ?? '',
+      period: Number(play.period ?? 0),
+      clock: formatPlayClock(play.clock),
+      scoreHome: play.scoreHome || null,
+      scoreAway: play.scoreAway || null,
+      teamAbbrev: play.teamTricode || null,
+      videoAvailable: Boolean(play.videoAvailable),
+    }))
+}
+
+function buildFallbackPlaysFromSnapshots(
+  state: Record<string, RawSnapshot>,
+): LivePlay[] {
+  const plays: LivePlay[] = []
+  let previousLatestEvent: string | null = null
+
+  const orderedSeconds = Object.keys(state)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+
+  for (const second of orderedSeconds) {
+    const snapshot = state[String(second)]
+    const recentEvents = snapshot?.recent_events ?? []
+    const latestEvent = recentEvents[recentEvents.length - 1]
+    if (!latestEvent) continue
+    if (latestEvent === previousLatestEvent) continue
+    previousLatestEvent = latestEvent
+
+    const period = Number(snapshot?.period ?? 0)
+    const clock = snapshot?.game_clock ?? '00:00'
+
+    plays.push({
+      id: `fallback-${second}`,
+      actionNumber: second,
+      description: latestEvent,
+      period,
+      clock,
+      scoreHome: null,
+      scoreAway: null,
+      teamAbbrev: null,
+      videoAvailable: false,
+    })
+  }
+
+  return plays
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clipId = searchParams.get('clipId')
@@ -146,7 +234,9 @@ export async function GET(request: Request) {
 
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: clip, error: dbError } = await supabase
@@ -165,13 +255,18 @@ export async function GET(request: Request) {
     const r2 = createR2Client()
     const clipDir = clip.vision_results_key.replace('/game_state.json', '')
 
-    const [state, playerBox] = await Promise.all([
+    const [state, playerBox, rawPlays] = await Promise.all([
       fetchR2Json(r2, clip.vision_results_key) as Promise<Record<string, RawSnapshot>>,
       fetchR2Json(r2, `${clipDir}/player_boxscore.json`) as Promise<Array<Record<string, unknown>>>,
+      fetchOptionalR2Json<RawPlay[]>(r2, `${clipDir}/pbp_raw.json`),
     ])
 
     const lookup = buildPlayerLookup(playerBox)
     const snapshots = buildSnapshots(state, lookup)
+    const playsFromRaw = buildPlays(rawPlays ?? [])
+    const plays = playsFromRaw.length > 0
+      ? playsFromRaw
+      : buildFallbackPlaysFromSnapshots(state)
     const secondKeys = Object.keys(snapshots)
       .map(Number)
       .filter(Number.isFinite)
@@ -185,6 +280,7 @@ export async function GET(request: Request) {
       minSecond: secondKeys[0],
       maxSecond: secondKeys[secondKeys.length - 1],
       snapshots,
+      plays,
     }
 
     return NextResponse.json(timeline)

@@ -842,7 +842,7 @@ def build_game_state(timeline: list[dict[str, Any]], pbp_data: dict) -> dict[str
 
 
 def upload_results(clip_id: str, timeline: list[dict], game_state: dict, pbp_data: dict) -> str:
-    """Upload game_state.json, player_boxscore.json, and clock_timeline.json to R2."""
+    """Upload game_state.json, player_boxscore.json, pbp_raw.json, and clock_timeline.json to R2."""
     s3 = _r2_client()
     results_key = f"results/{clip_id}/game_state.json"
 
@@ -858,6 +858,13 @@ def upload_results(clip_id: str, timeline: list[dict], game_state: dict, pbp_dat
         Bucket=R2_BUCKET,
         Key=f"results/{clip_id}/player_boxscore.json",
         Body=json.dumps(pbp_data.get("player_boxscore", []), indent=2).encode(),
+        ContentType="application/json",
+    )
+
+    s3.put_object(
+        Bucket=R2_BUCKET,
+        Key=f"results/{clip_id}/pbp_raw.json",
+        Body=json.dumps(pbp_data.get("pbp_raw", []), indent=2).encode(),
         ContentType="application/json",
     )
 
