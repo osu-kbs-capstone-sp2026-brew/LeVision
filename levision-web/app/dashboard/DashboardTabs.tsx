@@ -2,27 +2,18 @@
 
 import { useState } from 'react'
 import type { Profile } from '@/lib/types'
-import type { FootageClip } from '@/lib/footage-library'
-import FootageViewTab from '@/components/FootageViewTab'
 import UploadTab from '@/components/tabs/UploadTab'
 import PastGamesTab from '@/components/tabs/PastGamesTab'
 
-type Tab = 'upload' | 'past' | 'view'
+type Tab = 'upload' | 'footage'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'upload', label: 'Upload Footage' },
-  { id: 'past',   label: 'Past Games' },
-  { id: 'view',   label: 'View Footage' },
+  { id: 'upload',  label: 'Upload Footage' },
+  { id: 'footage', label: 'View Footage' },
 ]
 
 export default function DashboardTabs({ profile: _ }: { profile: Profile }) {
   const [activeTab, setActiveTab] = useState<Tab>('upload')
-  const [reviewClip, setReviewClip] = useState<FootageClip | null>(null)
-
-  const handleReviewClip = (clip: FootageClip) => {
-    setReviewClip(clip)
-    setActiveTab('view')
-  }
 
   return (
     <main className="flex-1 flex flex-col px-12 pt-10 pb-16 w-full">
@@ -43,9 +34,8 @@ export default function DashboardTabs({ profile: _ }: { profile: Profile }) {
       </div>
 
       <div className="animate-fade-up" key={activeTab}>
-        {activeTab === 'upload' && <UploadTab />}
-        {activeTab === 'past'   && <PastGamesTab onReviewClip={handleReviewClip} />}
-        {activeTab === 'view'   && <FootageViewTab reviewClip={reviewClip} />}
+        {activeTab === 'upload'  && <UploadTab />}
+        {activeTab === 'footage' && <PastGamesTab />}
       </div>
     </main>
   )

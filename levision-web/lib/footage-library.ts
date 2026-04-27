@@ -1,29 +1,56 @@
-/**
- * Viewable footage comes from the playback / processed-assets pipeline
- * (e.g. CDN, transcoded bucket, or a dedicated API) — not from the raw upload ingest path.
- */
-
 import type { Game } from './types'
 
 export type FootageClip = {
   id: string
   title: string
-  /** ISO date string when known */
   createdAt?: string
-  /**
-   * Stream URL from the playback layer. Null until processing completes or when unavailable.
-   */
   playbackUrl: string | null
-  /**
-   * Associated game data for stats display
-   */
   game?: Game
+  visionStatus?: string
+  visionStage?: string | null
+  homeTeamId?: string
+  awayTeamId?: string
+  gameDate?: string | null
 }
 
-/**
- * Load clips the user can watch. Replace with your playback API / Supabase view / edge function.
- */
+type FootageRow = {
+  id: string
+  filename: string
+  r2_url: string | null
+  espn_game_id: string | null
+  home_team_id: string | null
+  away_team_id: string | null
+  game_date: string | null
+  game_season: string | null
+  vision_status: string
+  vision_stage: string | null
+  created_at: string
+}
+
 export async function fetchFootageLibraryClips(): Promise<FootageClip[]> {
-  // TODO: call playback library endpoint (separate from upload).
-  return []
+  const res = await fetch('/api/footage')
+  if (!res.ok) throw new Error('Failed to load footage')
+  const data = (await res.json()) as { footage?: FootageRow[]; error?: string }
+  if (data.error) throw new Error(data.error)
+
+  return (data.footage ?? [])
+    .filter((row) => row.vision_status === 'completed')
+    .map((row) => ({
+      id: row.id,
+      title: row.filename,
+      createdAt: row.created_at,
+      playbackUrl: row.r2_url,
+      visionStatus: row.vision_status,
+      visionStage: row.vision_stage,
+      homeTeamId: row.home_team_id ?? undefined,
+      awayTeamId: row.away_team_id ?? undefined,
+      gameDate: row.game_date,
+    }))
+}
+
+export async function fetchAllFootage(): Promise<FootageRow[]> {
+  const res = await fetch('/api/footage')
+  if (!res.ok) throw new Error('Failed to load footage')
+  const data = (await res.json()) as { footage?: FootageRow[]; error?: string }
+  return data.footage ?? []
 }
