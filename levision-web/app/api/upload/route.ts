@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
 const MAX_UPLOAD_SIZE_BYTES = 300 * 1024 * 1024
-const FILE_TOO_LARGE_MESSAGE = 'File too big (max 300MB).'
+const PRESIGN_EXPIRES_IN = 600 // 10 minutes
 
 const REQUIRED_ENV_VARS = [
   'R2_ACCOUNT_ID',
@@ -35,15 +36,10 @@ function sanitizeExt(filename: string): string {
   return raw.replace(/[^a-z0-9]/g, '').slice(0, 10) || 'mp4'
 }
 
-function getContentLength(request: Request) {
-  const header = request.headers.get('content-length')
-  if (!header) return null
-  const parsed = Number.parseInt(header, 10)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function isFormDataParseFailure(error: unknown) {
-  return error instanceof TypeError && /Failed to parse body as FormData/i.test(error.message)
+type UploadRequestBody = {
+  filename: string
+  contentType: string
+  fileSize: number
 }
 
 export async function POST(request: Request) {
@@ -60,45 +56,34 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    let formData: FormData
-    try {
-      formData = await request.formData()
-    } catch (error) {
-      const contentLength = getContentLength(request)
-      if (
-        isFormDataParseFailure(error) ||
-        (contentLength !== null && contentLength > MAX_UPLOAD_SIZE_BYTES)
-      ) {
-        return NextResponse.json({ error: FILE_TOO_LARGE_MESSAGE }, { status: 413 })
-      }
-      throw error
+    const body = (await request.json()) as UploadRequestBody
+
+    if (!body.filename || !body.contentType || !body.fileSize) {
+      return NextResponse.json({ error: 'filename, contentType, and fileSize are required' }, { status: 400 })
     }
 
-    const fileEntry = formData.get('file')
-    if (!(fileEntry instanceof File)) {
-      return NextResponse.json({ error: 'A file field is required.' }, { status: 400 })
+    if (body.fileSize > MAX_UPLOAD_SIZE_BYTES) {
+      return NextResponse.json({ error: 'File too big (max 300MB).' }, { status: 413 })
     }
 
-    if (fileEntry.size > MAX_UPLOAD_SIZE_BYTES) {
-      return NextResponse.json({ error: FILE_TOO_LARGE_MESSAGE }, { status: 413 })
-    }
-
-    if (!fileEntry.type.startsWith('video/')) {
+    if (!body.contentType.startsWith('video/')) {
       return NextResponse.json({ error: 'Only video files are allowed.' }, { status: 400 })
     }
 
     const clipId = randomUUID()
-    const ext = sanitizeExt(fileEntry.name)
+    const ext = sanitizeExt(body.filename)
     const key = `footage/${user.id}/${clipId}.${ext}`
-    const body = Buffer.from(await fileEntry.arrayBuffer())
 
-    await createR2Client().send(
+    const r2 = createR2Client()
+    const presignedUrl = await getSignedUrl(
+      r2,
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET,
         Key: key,
-        Body: body,
-        ContentType: fileEntry.type || 'application/octet-stream',
-      })
+        ContentType: body.contentType,
+        ContentLength: body.fileSize,
+      }),
+      { expiresIn: PRESIGN_EXPIRES_IN }
     )
 
     const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, '')
@@ -108,18 +93,18 @@ export async function POST(request: Request) {
       id: clipId,
       r2_key: key,
       r2_url: url,
-      filename: fileEntry.name,
+      filename: body.filename,
       uploaded_by: user.id,
-      file_size: fileEntry.size,
+      file_size: body.fileSize,
       vision_status: 'awaiting_game',
     })
 
     if (dbError) {
       console.error('footage insert failed', dbError)
-      return NextResponse.json({ error: 'Upload saved but metadata write failed.' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create footage record.' }, { status: 500 })
     }
 
-    return NextResponse.json({ key, url, clipId })
+    return NextResponse.json({ presignedUrl, key, url, clipId })
   } catch (error) {
     console.error('Upload route failed', error)
     return NextResponse.json({ error: 'Unable to upload file right now.' }, { status: 500 })
