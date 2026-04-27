@@ -186,6 +186,44 @@ function buildPlays(rawPlays: RawPlay[]): LivePlay[] {
     }))
 }
 
+function buildFallbackPlaysFromSnapshots(
+  state: Record<string, RawSnapshot>,
+): LivePlay[] {
+  const plays: LivePlay[] = []
+  let previousLatestEvent: string | null = null
+
+  const orderedSeconds = Object.keys(state)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+
+  for (const second of orderedSeconds) {
+    const snapshot = state[String(second)]
+    const recentEvents = snapshot?.recent_events ?? []
+    const latestEvent = recentEvents[recentEvents.length - 1]
+    if (!latestEvent) continue
+    if (latestEvent === previousLatestEvent) continue
+    previousLatestEvent = latestEvent
+
+    const period = Number(snapshot?.period ?? 0)
+    const clock = snapshot?.game_clock ?? '00:00'
+
+    plays.push({
+      id: `fallback-${second}`,
+      actionNumber: second,
+      description: latestEvent,
+      period,
+      clock,
+      scoreHome: null,
+      scoreAway: null,
+      teamAbbrev: null,
+      videoAvailable: false,
+    })
+  }
+
+  return plays
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const clipId = searchParams.get('clipId')
@@ -225,7 +263,10 @@ export async function GET(request: Request) {
 
     const lookup = buildPlayerLookup(playerBox)
     const snapshots = buildSnapshots(state, lookup)
-    const plays = buildPlays(rawPlays ?? [])
+    const playsFromRaw = buildPlays(rawPlays ?? [])
+    const plays = playsFromRaw.length > 0
+      ? playsFromRaw
+      : buildFallbackPlaysFromSnapshots(state)
     const secondKeys = Object.keys(snapshots)
       .map(Number)
       .filter(Number.isFinite)
