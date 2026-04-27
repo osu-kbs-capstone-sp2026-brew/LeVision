@@ -7,16 +7,19 @@ Architecture:
   2. Fan-out OCR over frame batches using GPU T4 instances (parallel Modal function)
   3. Aggregate, smooth, and export clock_timeline.json
   4. Fetch play-by-play from NBA API using home/away team IDs + game date
-  5. Merge OCR timeline with play-by-play → processed_game_state.json
-  6. Upload results to R2 and POST completion webhook
+  5. Run GameStateMachine to build second-by-second ground-truth timeline
+  6. Merge OCR timeline with ground-truth → video_state_map
+  7. Format and upload results to R2, POST completion webhook
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +65,9 @@ VOLUME_MOUNT = "/mnt/frames"
 R2_BUCKET = "gamefootage"
 BATCH_SIZE = 30
 
+QUARTER_MAP = {"1ST": 1, "2ND": 2, "3RD": 3, "4TH": 4, "OT": 5}
+PERIOD_SECS = 720  # 12 min per NBA quarter
+
 # ---------------------------------------------------------------------------
 # Webhook helper
 # ---------------------------------------------------------------------------
@@ -94,6 +100,29 @@ def _r2_client():
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
         region_name="auto",
     )
+
+
+# ---------------------------------------------------------------------------
+# ESPN → NBA team ID resolution
+# ---------------------------------------------------------------------------
+
+
+def _espn_to_nba_team_id(espn_team_id: str) -> tuple[int, str]:
+    """Return (nba_api_team_id, abbreviation) by querying ESPN then nba_api."""
+    import requests as req
+    from nba_api.stats.static import teams as nba_teams
+
+    resp = req.get(
+        f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/{espn_team_id}",
+        timeout=10,
+    )
+    resp.raise_for_status()
+    abbrev = resp.json()["team"]["abbreviation"]
+
+    matches = nba_teams.find_teams_by_abbreviation(abbrev)
+    if not matches:
+        raise ValueError(f"No NBA team found for abbreviation '{abbrev}' (ESPN ID {espn_team_id})")
+    return matches[0]["id"], abbrev
 
 
 # ---------------------------------------------------------------------------
@@ -271,80 +300,479 @@ def smooth_timeline(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Step 4 — Fetch play-by-play from NBA API
+# Step 4 — Fetch play-by-play from NBA API (filtered to the correct game)
 # ---------------------------------------------------------------------------
 
 
 def fetch_play_by_play(home_team_id: str, away_team_id: str, game_date: str) -> dict:
     """Fetch game metadata, play-by-play, and box scores from the NBA API.
 
-    Args:
-        home_team_id: ESPN numeric team ID (e.g. "13" for Lakers).
-                      Used for fuzzy matching against nba_api team IDs.
-        away_team_id: ESPN numeric team ID for the away team.
-        game_date:    ISO date string from ESPN (e.g. "2024-12-25T17:30:00Z").
-
-    Returns dict with keys: game_meta, pbp_raw, player_boxscore.
+    Resolves ESPN team IDs → NBA team IDs, identifies the exact game on the
+    given date, and returns only that game's data.
     """
     from datetime import datetime, timezone
     from nba_api.stats.endpoints import LeagueGameFinder, PlayByPlayV3, BoxScoreTraditionalV3
+
+    # Resolve ESPN IDs to NBA API team IDs + abbreviations
+    home_nba_id, home_abbrev = _espn_to_nba_team_id(home_team_id)
+    away_nba_id, away_abbrev = _espn_to_nba_team_id(away_team_id)
+    print(f"Resolved teams: {home_abbrev} (NBA {home_nba_id}) vs {away_abbrev} (NBA {away_nba_id})")
 
     # Parse date — ESPN sends UTC ISO strings
     dt = datetime.fromisoformat(game_date.replace("Z", "+00:00"))
     date_str = dt.astimezone(timezone.utc).strftime("%m/%d/%Y")
 
-    # LeagueGameFinder locates all games on the target date.
-    # ESPN and nba_api use different numeric team IDs so we fetch all games on the
-    # date and pull PBP for each — the game state merge step handles alignment.
     game_finder = LeagueGameFinder(date_from_nullable=date_str, date_to_nullable=date_str)
     games_df = game_finder.get_data_frames()[0]
 
     if games_df.empty:
         raise ValueError(f"No games found for date {date_str}")
 
-    # Deduplicate: each game appears twice (home + away row)
-    game_ids = games_df["GAME_ID"].unique().tolist()
+    # Find the specific game matching our two teams via the MATCHUP column
+    # e.g. "LAL vs. GSW" or "GSW @ LAL"
+    matching_game_id: str | None = None
+    for _, row in games_df.iterrows():
+        matchup = str(row.get("MATCHUP", "")).upper()
+        if home_abbrev.upper() in matchup and away_abbrev.upper() in matchup:
+            matching_game_id = str(row["GAME_ID"])
+            break
 
-    game_meta = {"date": date_str, "game_ids": game_ids}
-    pbp_all = []
-    boxscore_all = {}
+    if not matching_game_id:
+        # Fallback: use the first game on the date (shouldn't happen with valid ESPN IDs)
+        matching_game_id = str(games_df["GAME_ID"].iloc[0])
+        print(f"[WARN] Could not find exact game for {home_abbrev} vs {away_abbrev} on {date_str}; using {matching_game_id}")
+    else:
+        print(f"Matched game_id: {matching_game_id}")
 
-    for game_id in game_ids:
-        try:
-            pbp = PlayByPlayV3(game_id=game_id)
-            pbp_df = pbp.get_data_frames()[0]
-            pbp_all.extend(pbp_df.to_dict(orient="records"))
+    # Fetch PBP and boxscore for just this game
+    pbp_raw: list[dict] = []
+    player_boxscore: list[dict] = []
 
-            box = BoxScoreTraditionalV3(game_id=game_id)
-            player_stats = box.get_data_frames()[0]
-            boxscore_all[game_id] = player_stats.to_dict(orient="records")
-        except Exception as e:
-            print(f"[WARN] PBP/boxscore fetch failed for game {game_id}: {e}")
+    try:
+        pbp = PlayByPlayV3(game_id=matching_game_id)
+        pbp_raw = pbp.get_data_frames()[0].to_dict(orient="records")
+
+        box = BoxScoreTraditionalV3(game_id=matching_game_id)
+        player_boxscore = box.get_data_frames()[0].to_dict(orient="records")
+    except Exception as e:
+        print(f"[WARN] PBP/boxscore fetch failed for game {matching_game_id}: {e}")
+
+    print(f"PBP events: {len(pbp_raw)}  |  Roster size: {len(player_boxscore)}")
 
     return {
-        "game_meta": game_meta,
-        "pbp_raw": pbp_all,
-        "player_boxscore": boxscore_all,
+        "game_meta": {"date": date_str, "game_id": matching_game_id},
+        "pbp_raw": pbp_raw,
+        "player_boxscore": player_boxscore,
+        "home_nba_id": home_nba_id,
+        "away_nba_id": away_nba_id,
     }
 
 
 # ---------------------------------------------------------------------------
-# Step 5 — Build game state JSON
+# GameStateMachine — inlined from state_machine.py
 # ---------------------------------------------------------------------------
 
 
-def build_game_state(timeline: list[dict[str, Any]]) -> dict[str, Any]:
-    game_state: dict[str, Any] = {}
-    for entry in timeline:
-        sec = entry["video_sec"]
-        quarter = entry.get("quarter") or "UNK"
-        clock = entry.get("clock") or "00:00"
-        game_state[str(sec)] = {
-            "game_time": f"{quarter}_{clock}",
-            "stats": {},
-            "recent_event": None,
+def _parse_iso_clock(clock_str: str) -> int:
+    m = re.match(r"PT(\d+)M([\d.]+)S", str(clock_str))
+    if m:
+        return int(m.group(1)) * 60 + int(float(m.group(2)))
+    return 0
+
+
+def _remaining_to_clock_str(remaining: int) -> str:
+    mn, s = divmod(max(remaining, 0), 60)
+    return f"{mn:02d}:{s:02d}"
+
+
+def _game_elapsed(period: int, remaining: int) -> int:
+    return (period - 1) * PERIOD_SECS + (PERIOD_SECS - remaining)
+
+
+def _norm(name: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", name)
+    stripped = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(stripped.lower().split())
+
+
+class GameStateMachine:
+    """Replay NBA PBP events and produce a second-by-second state timeline."""
+
+    def __init__(
+        self,
+        pbp: list[dict],
+        boxscore: list[dict],
+        home_team_id: int,
+        away_team_id: int,
+    ) -> None:
+        self.home_id = home_team_id
+        self.away_id = away_team_id
+        self.on_court: dict[int, list[int]] = {home_team_id: [], away_team_id: []}
+        self.stats: dict[int, dict[str, int]] = {}
+        self.events_by_second: dict[int, list[str]] = {}
+        self.recent_events_by_second: dict[int, list[str]] = {}
+        self.current_game_sec: int = 0
+        self.period = 1
+        self.clock = "12:00"
+        self._name_idx: dict[str, int] = {}
+        self.timeline: dict[int, dict] = {}
+
+        self._build_registry(pbp, boxscore)
+        self._init_starters(boxscore)
+        self._init_stats(boxscore)
+        self._build_timeline(pbp)
+
+    def _register(self, name: str, pid: int) -> None:
+        if not name or not pid:
+            return
+        self._name_idx[_norm(name)] = pid
+        parts = name.strip().split()
+        if parts:
+            self._name_idx[_norm(parts[-1])] = pid
+        if len(parts) >= 2:
+            abbrev = f"{parts[0][0]}. {' '.join(parts[1:])}"
+            self._name_idx[_norm(abbrev)] = pid
+
+    def _build_registry(self, pbp: list[dict], boxscore: list[dict]) -> None:
+        for row in pbp:
+            pid = row.get("personId")
+            if not pid or pid == 0:
+                continue
+            self._register(row.get("playerName", ""), pid)
+            self._register(row.get("playerNameI", ""), pid)
+        for row in boxscore:
+            pid = row.get("personId")
+            if not pid:
+                continue
+            full = f"{row.get('firstName', '')} {row.get('familyName', '')}".strip()
+            self._register(full, pid)
+            self._register(row.get("familyName", ""), pid)
+
+    def _lookup(self, name: str) -> int | None:
+        key = _norm(name)
+        pid = self._name_idx.get(key)
+        if pid:
+            return pid
+        parts = key.split()
+        if parts:
+            return self._name_idx.get(parts[-1])
+        return None
+
+    def _init_starters(self, boxscore: list[dict]) -> None:
+        for row in boxscore:
+            pos = str(row.get("position", "")).strip()
+            if pos not in ("G", "F", "C"):
+                continue
+            tid = row["teamId"]
+            pid = row["personId"]
+            if tid in self.on_court and pid not in self.on_court[tid]:
+                self.on_court[tid].append(pid)
+        for tid, lineup in self.on_court.items():
+            print(f"  Starters team {tid}: {len(lineup)} players")
+            if len(lineup) != 5:
+                print(f"  [WARN] Expected 5 starters, got {len(lineup)}")
+
+    def _init_stats(self, boxscore: list[dict]) -> None:
+        for row in boxscore:
+            pid = row.get("personId")
+            if pid:
+                self.stats[pid] = {"pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0}
+
+    def build_recent_events(self, window: int = 5) -> None:
+        all_event_secs = sorted(self.events_by_second.keys())
+        if not all_event_secs:
+            return
+        max_sec = max(all_event_secs)
+        rolling: list[str] = []
+        for sec in range(max_sec + 1):
+            if sec - 1 in self.events_by_second:
+                rolling.extend(self.events_by_second[sec - 1])
+            rolling = rolling[-window:]
+            self.recent_events_by_second[sec] = list(rolling)
+
+    def _build_timeline(self, pbp: list[dict]) -> None:
+        bucket: dict[int, list[dict]] = {}
+        for row in pbp:
+            remaining = _parse_iso_clock(row.get("clock", "PT00M00.00S"))
+            period = int(row.get("period", 1))
+            gsec = _game_elapsed(period, remaining)
+            bucket.setdefault(gsec, []).append(row)
+
+        max_sec = max(bucket.keys()) if bucket else 2880
+        prev_sec = 0
+        current_state = self._snapshot()
+
+        for gsec in sorted(bucket.keys()):
+            for s in range(prev_sec, gsec):
+                self.timeline[s] = {**current_state, "events": []}
+            self.current_game_sec = gsec
+            for row in bucket[gsec]:
+                self.period = int(row.get("period", self.period))
+                remaining = _parse_iso_clock(row.get("clock", "PT12M00.00S"))
+                self.clock = _remaining_to_clock_str(remaining)
+                self._apply(row)
+            current_state = self._snapshot()
+            self.timeline[gsec] = {**current_state, "events": self.events_by_second.get(gsec, [])}
+            prev_sec = gsec + 1
+
+        for s in range(prev_sec, max_sec + 1):
+            self.timeline[s] = {**current_state, "events": []}
+
+        print(f"  Timeline spans game_sec 0–{max_sec} ({len(self.timeline)} entries)")
+
+        self.build_recent_events()
+        for sec, entry in self.timeline.items():
+            entry["recent_events"] = self.recent_events_by_second.get(sec, [])
+
+    def _apply(self, row: dict) -> None:
+        action = row.get("actionType", "")
+        if action == "Substitution":
+            self._do_sub(row)
+        elif action == "Made Shot":
+            self._do_made_shot(row)
+        elif action == "Free Throw":
+            if "MISS" not in row.get("description", "").upper():
+                self._do_free_throw(row)
+        elif action == "Rebound":
+            self._do_rebound(row)
+        elif action == "Turnover":
+            self._do_turnover(row)
+        elif action == "":
+            self._do_unlabelled(row)
+        elif action == "Missed Shot":
+            self._add_event(self.current_game_sec, row.get("description", "")[:80])
+
+    def _do_sub(self, row: dict) -> None:
+        out_id = row.get("personId")
+        team_id = row.get("teamId")
+        desc = row.get("description", "")
+        m = re.match(r"SUB:\s+(.+?)\s+FOR\s+", desc, re.IGNORECASE)
+        if not m:
+            return
+        in_name = m.group(1).strip()
+        in_id = self._lookup(in_name)
+        lineup = self.on_court.get(team_id, [])
+        if out_id and out_id in lineup:
+            lineup.remove(out_id)
+        if in_id and in_id not in lineup:
+            lineup.append(in_id)
+        elif not in_id:
+            print(f"  [WARN] sub: couldn't resolve '{in_name}' in '{desc}'")
+
+    def _do_made_shot(self, row: dict) -> None:
+        pid = row.get("personId")
+        if not pid or pid == 0:
+            return
+        desc = row.get("description", "")
+        pts = 3 if "3PT" in desc else 2
+        self._add(pid, "pts", pts)
+        m = re.search(r"\((\w[\w .']+?)\s+\d+\s+AST\)", desc)
+        if m:
+            asst_id = self._lookup(m.group(1).strip())
+            if asst_id:
+                self._add(asst_id, "ast", 1)
+        self._add_event(self.current_game_sec, desc[:80])
+
+    def _do_free_throw(self, row: dict) -> None:
+        pid = row.get("personId")
+        if pid and pid != 0:
+            self._add(pid, "pts", 1)
+
+    def _do_rebound(self, row: dict) -> None:
+        pid = row.get("personId")
+        desc = row.get("description", "")
+        if not pid or pid == 0 or "Team" in desc:
+            return
+        self._add(pid, "reb", 1)
+        self._add_event(self.current_game_sec, desc[:80])
+
+    def _do_turnover(self, row: dict) -> None:
+        self._add_event(self.current_game_sec, row.get("description", "")[:80])
+
+    def _do_unlabelled(self, row: dict) -> None:
+        pid = row.get("personId")
+        desc = row.get("description", "")
+        if not pid or pid == 0:
+            return
+        if "BLOCK" in desc:
+            self._add(pid, "blk", 1)
+            self._add_event(self.current_game_sec, desc[:80])
+        elif "STEAL" in desc:
+            self._add(pid, "stl", 1)
+            self._add_event(self.current_game_sec, desc[:80])
+
+    def _add(self, pid: int, stat: str, value: int) -> None:
+        if pid not in self.stats:
+            self.stats[pid] = {"pts": 0, "reb": 0, "ast": 0, "stl": 0, "blk": 0}
+        self.stats[pid][stat] += value
+
+    def _add_event(self, sec: int, desc: str) -> None:
+        if desc:
+            self.events_by_second.setdefault(sec, []).append(desc)
+
+    def _snapshot(self) -> dict:
+        return {
+            "period": self.period,
+            "clock": self.clock,
+            "on_court": copy.deepcopy(self.on_court),
+            "stats": copy.deepcopy(self.stats),
         }
-    return game_state
+
+
+# ---------------------------------------------------------------------------
+# OCR → ground-truth merge — inlined from merge_ocr.py
+# ---------------------------------------------------------------------------
+
+
+def _clock_remaining(clock_str: str) -> int:
+    try:
+        mn, s = clock_str.split(":")
+        return int(mn) * 60 + int(s)
+    except Exception:
+        return PERIOD_SECS
+
+
+def _ocr_to_game_sec(quarter: str | None, clock: str | None) -> int | None:
+    if not quarter or not clock:
+        return None
+    period = QUARTER_MAP.get(str(quarter).upper())
+    if period is None:
+        return None
+    remaining = _clock_remaining(clock)
+    return (period - 1) * PERIOD_SECS + (PERIOD_SECS - remaining)
+
+
+def _snap(target_sec: int, available: list[int]) -> int:
+    return min(available, key=lambda s: abs(s - target_sec))
+
+
+def _merge_ocr(
+    ocr_timeline: list[dict],
+    gt_timeline: dict[str, dict],
+) -> dict[str, dict]:
+    available_secs = sorted(int(k) for k in gt_timeline.keys())
+    result: dict[str, dict] = {}
+    null_count = 0
+    drifts: list[int] = []
+
+    for entry in ocr_timeline:
+        vsec = entry["video_sec"]
+        qtr = entry.get("quarter")
+        clock = entry.get("clock")
+        target = _ocr_to_game_sec(qtr, clock)
+
+        if target is None:
+            gsec = 0
+            null_count += 1
+        else:
+            gsec = _snap(target, available_secs)
+            drifts.append(abs(gsec - target))
+
+        snapshot = dict(gt_timeline[str(gsec)])
+        snapshot["ocr_clock"] = clock or "12:00"
+        snapshot["ocr_quarter"] = qtr or "1ST"
+        result[str(vsec)] = snapshot
+
+    print(f"  Mapped {len(result)} video_secs | null-OCR: {null_count}")
+    if drifts:
+        print(f"  Clock drift avg={sum(drifts)/len(drifts):.1f}s  max={max(drifts)}s")
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Step 5 — Build game state (full pipeline: state machine + merge + format)
+# ---------------------------------------------------------------------------
+
+
+def build_game_state(timeline: list[dict[str, Any]], pbp_data: dict) -> dict[str, Any]:
+    """Run GameStateMachine, merge with OCR timeline, and format final output."""
+    pbp = pbp_data.get("pbp_raw", [])
+    boxscore = pbp_data.get("player_boxscore", [])
+    home_nba_id: int = pbp_data.get("home_nba_id", 0)
+    away_nba_id: int = pbp_data.get("away_nba_id", 0)
+
+    if not pbp or not boxscore:
+        print("[WARN] No PBP/boxscore data — falling back to clock-only output")
+        return {
+            str(e["video_sec"]): {
+                "game_clock": e.get("clock") or "00:00",
+                "period": QUARTER_MAP.get(str(e.get("quarter", "")).upper(), 1),
+                "home_team": {"on_court": [], "player_stats": {}},
+                "visitor_team": {"on_court": [], "player_stats": {}},
+                "events": [],
+                "recent_events": [],
+            }
+            for e in timeline
+        }
+
+    # Build ground-truth second-by-second timeline
+    print("Building GameStateMachine…")
+    sm = GameStateMachine(pbp, boxscore, home_nba_id, away_nba_id)
+    gt_timeline = {str(k): v for k, v in sm.timeline.items()}
+
+    # Merge OCR timeline with ground truth
+    print("Merging OCR timeline with ground truth…")
+    video_state_map = _merge_ocr(timeline, gt_timeline)
+
+    # Build team membership sets for stat assignment
+    home_pids = {r["personId"] for r in boxscore if r.get("teamId") == home_nba_id}
+    visitor_pids = {r["personId"] for r in boxscore if r.get("teamId") == away_nba_id}
+
+    # Format final output
+    print("Formatting output…")
+    out: dict[str, Any] = {}
+
+    for vsec_str, state in video_state_map.items():
+        # Explicitly untyped so .get() accepts both int and str keys.
+        # In-memory snapshots use int keys; JSON-round-tripped data uses str keys.
+        on_court: dict = state.get("on_court", {})
+        all_stats: dict = state.get("stats", {})
+
+        home_court = on_court.get(home_nba_id) or on_court.get(str(home_nba_id)) or []
+        visitor_court = on_court.get(away_nba_id) or on_court.get(str(away_nba_id)) or []
+
+        ocr_clock = state.get("ocr_clock") or state.get("clock", "12:00")
+        ocr_quarter = state.get("ocr_quarter") or "1ST"
+        period = QUARTER_MAP.get(str(ocr_quarter).upper(), state.get("period", 1))
+
+        home_court_set = {int(x) for x in home_court}
+        visitor_court_set = {int(x) for x in visitor_court}
+
+        home_stats: dict[str, dict] = {}
+        visitor_stats: dict[str, dict] = {}
+
+        for pid_str, pstats in all_stats.items():
+            pid = int(pid_str)
+            record = {
+                "pts": pstats.get("pts", 0),
+                "reb": pstats.get("reb", 0),
+                "ast": pstats.get("ast", 0),
+                "stl": pstats.get("stl", 0),
+                "blk": pstats.get("blk", 0),
+            }
+            if pid in home_court_set or pid in home_pids:
+                home_stats[str(pid)] = record
+            elif pid in visitor_court_set or pid in visitor_pids:
+                visitor_stats[str(pid)] = record
+
+        out[vsec_str] = {
+            "game_clock": ocr_clock,
+            "period": period,
+            "home_team": {
+                "on_court": [int(x) for x in home_court],
+                "player_stats": home_stats,
+            },
+            "visitor_team": {
+                "on_court": [int(x) for x in visitor_court],
+                "player_stats": visitor_stats,
+            },
+            "events": state.get("events", []),
+            "recent_events": state.get("recent_events", []),
+        }
+
+    print(f"Game state built: {len(out)} video_secs")
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -395,7 +823,7 @@ def process_clip(
     webhook_url: str,
     secret: str,
 ) -> None:
-    """Full pipeline: download → OCR → fetch PBP → merge → upload → notify."""
+    """Full pipeline: download → OCR → fetch PBP → state machine → merge → upload → notify."""
     try:
         # Stage 1: extract frames
         _post_webhook(webhook_url, secret, {"event": "stage_update", "clip_id": clip_id, "stage": "extracting_frames"})
@@ -411,14 +839,14 @@ def process_clip(
         timeline = smooth_timeline(raw_results)
         print(f"OCR complete: {len(timeline)} timeline entries.")
 
-        # Stage 3: fetch play-by-play
+        # Stage 3: fetch play-by-play (filtered to this exact game)
         _post_webhook(webhook_url, secret, {"event": "stage_update", "clip_id": clip_id, "stage": "fetching_pbp"})
         pbp_data = fetch_play_by_play(home_team_id, away_team_id, game_date)
         print(f"PBP fetched: {len(pbp_data.get('pbp_raw', []))} events.")
 
-        # Stage 4: merge
+        # Stage 4: run state machine + merge + format
         _post_webhook(webhook_url, secret, {"event": "stage_update", "clip_id": clip_id, "stage": "merging"})
-        game_state = build_game_state(timeline)
+        game_state = build_game_state(timeline, pbp_data)
 
         # Stage 5: upload results
         _post_webhook(webhook_url, secret, {"event": "stage_update", "clip_id": clip_id, "stage": "uploading_results"})

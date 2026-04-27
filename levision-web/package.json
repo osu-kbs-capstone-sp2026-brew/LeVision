@@ -13,6 +13,7 @@
     "@aws-sdk/lib-storage": "^3.1019.0",
     "@aws-sdk/s3-request-presigner": "^3.1037.0",
     "@supabase/ssr": "^0.9.0",
+    "lightningcss-darwin-arm64": "^1.32.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -26,5 +27,8 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "lightningcss": "^1.32.0"
   }
 }

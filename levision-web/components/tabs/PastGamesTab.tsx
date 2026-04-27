@@ -68,7 +68,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   awaiting_game: 'text-muted/60 bg-white/[0.04]',
   processing:    'text-brand/70 bg-brand/10',
-  completed:     'text-brand bg-brand/15',
+  completed:     'text-emerald-400 bg-emerald-400/10',
   failed:        'text-accent bg-accent/10',
 }
 
@@ -263,7 +263,7 @@ export default function PastGamesTab() {
                   ) : (
                     <div className="flex items-center justify-between">
                       {isReady ? (
-                        <span className="text-[0.65rem] text-brand/60 font-body tracking-[0.08em] uppercase">
+                        <span className="text-[0.65rem] text-emerald-400/70 font-body tracking-[0.08em] uppercase">
                           Click to review
                         </span>
                       ) : row.vision_status === 'awaiting_game' ? (
@@ -292,7 +292,7 @@ export default function PastGamesTab() {
                 <div className="h-0.5 w-full bg-white/[0.05]">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${
-                      progress === -1 ? 'bg-accent w-full' : 'bg-brand'
+                      progress === -1 ? 'bg-accent w-full' : progress === 100 ? 'bg-emerald-400' : 'bg-brand'
                     }`}
                     style={{ width: progress === -1 ? '100%' : `${progress}%` }}
                   />
